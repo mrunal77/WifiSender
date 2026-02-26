@@ -51,3 +51,7 @@ dotnet publish -c Release -o ./publish
 - The default port is 5555, but you can change it if needed
 - Files are saved to the selected download folder (defaults to ~/Downloads)
 - Use "Test" button to verify connectivity before sending
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

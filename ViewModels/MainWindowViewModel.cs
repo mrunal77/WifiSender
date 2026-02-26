@@ -78,7 +78,10 @@ public partial class MainWindowViewModel : ObservableObject
     private DiscoveredDevice? _selectedDevice;
 
     [ObservableProperty]
-    private string _receiveButtonText = "📥 START RECEIVING";
+    private string _receiveButtonText = "START RECEIVING";
+
+    [ObservableProperty]
+    private string _receiveButtonColor = "#FF6D00";
 
     public ObservableCollection<string> SelectedFiles { get; } = new();
     public ObservableCollection<DiscoveredDevice> DiscoveredDevices { get; } = new();
@@ -91,6 +94,7 @@ public partial class MainWindowViewModel : ObservableObject
     partial void OnIsReceivingChanged(bool value)
     {
         ReceiveButtonText = value ? "STOP" : "START RECEIVING";
+        ReceiveButtonColor = value ? "#FF1744" : "#FF6D00";
     }
 
     private string GetLocalIpAddress()

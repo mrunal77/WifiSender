@@ -263,14 +263,16 @@
                 </Border>
 
                 <!-- Action Buttons -->
-                <Grid ColumnDefinitions="*,*" RowDefinitions="Auto">
+                <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto">
                     <Button Grid.Column="0" Content="📤 SEND" Command="{Binding SendFilesCommand}" CommandParameter="{Binding $parent[Window]}"
                             Classes="Success" HorizontalAlignment="Stretch" Margin="0,0,8,0"
-                            IsEnabled="{Binding !IsSending}"/>
-                    <Button Grid.Column="1" Content="{Binding ReceiveButtonText}" Command="{Binding ToggleReceivingCommand}" 
-                            CommandParameter="{Binding $parent[Window]}"
-                            Classes="Secondary" HorizontalAlignment="Stretch" Margin="8,0,0,0"
-                            IsEnabled="{Binding !IsSending}"/>
+                            IsEnabled="{Binding !IsReceiving}"/>
+                    <Button Grid.Column="1" Content="📥 START RECEIVING" Command="{Binding StartReceivingCommand}" CommandParameter="{Binding $parent[Window]}"
+                            Classes="Secondary" HorizontalAlignment="Stretch" Margin="8,0"
+                            IsEnabled="{Binding !IsReceiving}"/>
+                    <Button Grid.Column="2" Content="⏹️ STOP" Command="{Binding StopReceivingCommand}"
+                            Classes="Danger" HorizontalAlignment="Stretch" Margin="8,0,0,0"
+                            IsEnabled="{Binding IsReceiving}"/>
                 </Grid>
 
                 <!-- Progress Card -->

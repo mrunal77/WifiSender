@@ -77,12 +77,20 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private DiscoveredDevice? _selectedDevice;
 
+    [ObservableProperty]
+    private string _receiveButtonText = "📥 START RECEIVING";
+
     public ObservableCollection<string> SelectedFiles { get; } = new();
     public ObservableCollection<DiscoveredDevice> DiscoveredDevices { get; } = new();
 
     public MainWindowViewModel()
     {
         LocalIp = GetLocalIpAddress();
+    }
+
+    partial void OnIsReceivingChanged(bool value)
+    {
+        ReceiveButtonText = value ? "STOP" : "START RECEIVING";
     }
 
     private string GetLocalIpAddress()
@@ -115,11 +123,11 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void SelectFiles(Window? window)
+    private async Task SelectFiles(Window? window)
     {
         if (window == null) return;
 
-        var files = window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        var files = await window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             Title = "Select Files to Send",
             AllowMultiple = true,
@@ -127,7 +135,7 @@ public partial class MainWindowViewModel : ObservableObject
             {
                 new FilePickerFileType("All Files") { Patterns = new[] { "*.*" } }
             }
-        }).Result;
+        });
 
         SelectedFiles.Clear();
         foreach (var file in files)
@@ -148,11 +156,11 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void SelectDownloadFolder(Window? window)
+    private async Task SelectDownloadFolder(Window? window)
     {
         if (window == null) return;
 
-        var folder = window.StorageProvider.OpenFolderPickerAsync(_folderPickerOptions).Result;
+        var folder = await window.StorageProvider.OpenFolderPickerAsync(_folderPickerOptions);
         if (folder.Count > 0)
         {
             DownloadFolder = folder[0].Path.LocalPath;
@@ -185,53 +193,54 @@ public partial class MainWindowViewModel : ObservableObject
 
             for (int i = 0; i < 3; i++)
             {
+                if (_scanCts.Token.IsCancellationRequested) break;
                 byte[] data = Encoding.UTF8.GetBytes(discoveryMsg);
                 await _udpScanner.SendAsync(data, data.Length, new IPEndPoint(IPAddress.Parse(broadcastIp), DiscoveryPort));
-                await Task.Delay(500, _scanCts.Token);
+                await Task.Delay(500);
             }
 
-            // Listen for responses
-            var receiveTask = Task.Run(async () =>
+            // Listen for responses for limited time
+            var endTime = DateTime.UtcNow.AddSeconds(5);
+            
+            while (DateTime.UtcNow < endTime && !_scanCts.Token.IsCancellationRequested)
             {
                 try
                 {
-                    while (!_scanCts.Token.IsCancellationRequested)
+                    using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_scanCts.Token, cts.Token);
+                    
+                    var result = await _udpScanner.ReceiveAsync(linkedCts.Token);
+                    string response = Encoding.UTF8.GetString(result.Buffer);
+                    
+                    if (response.StartsWith("WIFISENDER_RESPONSE|"))
                     {
-                        var result = await _udpScanner.ReceiveAsync(_scanCts.Token);
-                        string response = Encoding.UTF8.GetString(result.Buffer);
-                        
-                        if (response.StartsWith("WIFISENDER_RESPONSE|"))
+                        var parts = response.Split('|');
+                        if (parts.Length >= 3)
                         {
-                            var parts = response.Split('|');
-                            if (parts.Length >= 3)
+                            var device = new DiscoveredDevice
                             {
-                                var device = new DiscoveredDevice
-                                {
-                                    IpAddress = parts[1],
-                                    Port = parts[2],
-                                    DeviceName = parts.Length > 3 ? parts[3] : ""
-                                };
+                                IpAddress = parts[1],
+                                Port = parts[2],
+                                DeviceName = parts.Length > 3 ? parts[3] : ""
+                            };
 
-                                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                            {
+                                if (!DiscoveredDevices.Any(d => d.IpAddress == device.IpAddress && d.Port == device.Port))
                                 {
-                                    if (!DiscoveredDevices.Any(d => d.IpAddress == device.IpAddress && d.Port == device.Port))
-                                    {
-                                        DiscoveredDevices.Add(device);
-                                        Status = $"Found {DiscoveredDevices.Count} device(s)";
-                                    }
-                                });
-                            }
+                                    DiscoveredDevices.Add(device);
+                                    Status = $"Found {DiscoveredDevices.Count} device(s)";
+                                }
+                            });
                         }
                     }
                 }
-                catch (OperationCanceledException) { }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
                 catch { }
-            });
-
-            // Wait for scan to complete
-            await Task.Delay(3000, _scanCts.Token);
-            
-            await receiveTask;
+            }
 
             if (DiscoveredDevices.Count == 0)
             {
@@ -592,6 +601,19 @@ public partial class MainWindowViewModel : ObservableObject
         IsReceiving = false;
         IsScanning = false;
         Status = "Stopped";
+    }
+
+    [RelayCommand]
+    private async Task ToggleReceiving(Window? window)
+    {
+        if (IsReceiving)
+        {
+            StopReceiving();
+        }
+        else
+        {
+            await StartReceiving(window);
+        }
     }
 
     [RelayCommand]

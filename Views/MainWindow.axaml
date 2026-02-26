@@ -1,0 +1,157 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:WifiSender.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="600"
+        x:Class="WifiSender.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="WifiSender - File Transfer"
+        Width="700" Height="620"
+        MinWidth="600" MinHeight="500"
+        Background="#F8FAFC">
+
+    <Window.Styles>
+        <Style Selector="Button.Primary">
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="Button.Primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#1D4ED8"/>
+        </Style>
+        <Style Selector="Button.Success">
+            <Setter Property="Background" Value="#10B981"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="Button.Success:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#059669"/>
+        </Style>
+        <Style Selector="Button.Danger">
+            <Setter Property="Background" Value="#EF4444"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="Button.Secondary">
+            <Setter Property="Background" Value="#6366F1"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="CornerRadius" Value="6"/>
+        </Style>
+        <Style Selector="TextBlock.Header">
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="White"/>
+        </Style>
+        <Style Selector="TextBlock.Label">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#64748B"/>
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="CornerRadius" Value="4"/>
+        </Style>
+    </Window.Styles>
+
+    <DockPanel>
+        <!-- Header -->
+        <Border DockPanel.Dock="Top" Background="#1E293B" Padding="20,15">
+            <TextBlock Classes="Header" Text="WifiSender"/>
+        </Border>
+
+        <!-- Main Content -->
+        <ScrollViewer Padding="20">
+            <StackPanel Spacing="15">
+
+                <!-- Connection Panel -->
+                <Border Background="White" CornerRadius="8" Padding="20" BoxShadow="0 2 8 0 #20000000">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Connection" FontSize="16" FontWeight="SemiBold" Foreground="#1E293B"/>
+
+                        <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto,Auto">
+                            <!-- Local IP -->
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Your IP:" Classes="Label" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding LocalIp}" FontWeight="SemiBold" Foreground="#10B981" VerticalAlignment="Center"/>
+
+                            <!-- Port -->
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Port:" Classes="Label" VerticalAlignment="Center" Margin="0,8,10,0"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Port}" Width="100" HorizontalAlignment="Left" Margin="0,8,0,0"/>
+
+                            <!-- Recipient IP -->
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Recipient IP:" Classes="Label" VerticalAlignment="Center" Margin="0,8,10,0"/>
+                            <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                                <TextBox Text="{Binding RecipientIp}" Watermark="192.168.1.100"/>
+                                <Button Grid.Column="1" Content="Test" Command="{Binding TestConnectionCommand}" 
+                                        Classes="Secondary" Padding="15,8" Margin="8,0,0,0"/>
+                            </Grid>
+                            <TextBlock Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding ConnectionTestResult}" 
+                                       Foreground="#64748B" FontSize="12" Margin="0,5,0,0"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Files Panel -->
+                <Border Background="White" CornerRadius="8" Padding="20" BoxShadow="0 2 8 0 #20000000">
+                    <StackPanel Spacing="12">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="Files" FontSize="16" FontWeight="SemiBold" Foreground="#1E293B" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                                <Button Content="Select Files" Command="{Binding SelectFilesCommand}" CommandParameter="{Binding $parent[Window]}"
+                                        Classes="Primary"/>
+                                <Button Content="Clear" Command="{Binding ClearFilesCommand}" 
+                                        Background="#E2E8F0" Foreground="#64748B" Padding="15,10"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- File List -->
+                        <Border Background="#F1F5F9" CornerRadius="4" Padding="10" MinHeight="120" MaxHeight="150">
+                            <ListBox ItemsSource="{Binding SelectedFiles}" Background="Transparent" 
+                                     BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" FontSize="13"/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+
+                        <Grid ColumnDefinitions="Auto,*">
+                            <TextBlock Text="Download folder:" Classes="Label" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Content="Select Folder" Command="{Binding SelectDownloadFolderCommand}" 
+                                    CommandParameter="{Binding $parent[Window]}"
+                                    Classes="Primary" HorizontalAlignment="Left"/>
+                        </Grid>
+                        <TextBlock Text="{Binding DownloadFolder, FallbackValue='Not selected'}" 
+                                   FontSize="12" Foreground="#64748B" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Action Buttons -->
+                <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto">
+                    <Button Grid.Column="0" Content="SEND" Command="{Binding SendFilesCommand}" CommandParameter="{Binding $parent[Window]}"
+                            Classes="Success" FontWeight="SemiBold" HorizontalAlignment="Stretch" Margin="0,0,5,0"
+                            IsEnabled="{Binding !IsSending}"/>
+                    <Button Grid.Column="1" Content="START RECEIVING" Command="{Binding StartReceivingCommand}" CommandParameter="{Binding $parent[Window]}"
+                            Classes="Secondary" FontWeight="SemiBold" HorizontalAlignment="Stretch" Margin="5,0"
+                            IsEnabled="{Binding !IsReceiving}"/>
+                    <Button Grid.Column="2" Content="STOP" Command="{Binding StopReceivingCommand}"
+                            Classes="Danger" FontWeight="SemiBold" HorizontalAlignment="Stretch" Margin="5,0,0,0"
+                            IsEnabled="{Binding IsReceiving}"/>
+                </Grid>
+
+                <!-- Progress -->
+                <StackPanel Spacing="5">
+                    <TextBlock Text="{Binding Status}" FontSize="13" Foreground="#64748B"/>
+                    <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="100" Height="8" CornerRadius="4"
+                                 Foreground="#2563EB" Background="#E2E8F0"/>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+
+</Window>

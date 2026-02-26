@@ -1,32 +1,53 @@
 # WifiSender
 
-A Python GUI application to send and receive files over WiFi or LAN.
+A cross-platform desktop application to send and receive files over WiFi or LAN.
+
+## Features
+
+- **Cross-platform**: Works on Windows, Linux, and macOS
+- **Auto-detect local IP**: Automatically detects your local network IP
+- **Send files**: Select files and send to any device on your network
+- **Receive files**: Start receiving and save files to a selected folder
+- **Progress tracking**: Visual progress bar for file transfers
+- **Test connection**: Verify connectivity before sending
 
 ## Requirements
 
-- Python 3.7+
-- tkinter (usually included with Python)
+- .NET 10.0 or higher
 
-On some systems, you may need to install tkinter:
-- **Ubuntu/Debian**: `sudo apt-get install python3-tk`
-- **Fedora/RHEL**: `sudo dnf install python3-tkinter`
-- **macOS**: Already included with Python
+## Running the Application
 
-## Usage
-
+### From published files:
 ```bash
-python3 wifisender.py
+./publish/WifiSender
+```
+
+### From source:
+```bash
+dotnet run
+```
+
+### Building:
+```bash
+# Debug build
+dotnet build
+
+# Release build
+dotnet publish -c Release -o ./publish
 ```
 
 ## How to Use
 
 ### Sending Files
 1. Open the app on both computers connected to the same network
-2. On the receiving computer: Click "RECEIVE" mode, select a download folder, then click "START RECEIVING"
-3. On the sending computer: Enter the receiver's IP address (shown on their screen), select files, then click "SEND"
+2. On the receiving computer: Click "START RECEIVING"
+3. On the sending computer: 
+   - Enter the receiver's IP address
+   - Click "Select Files" to choose files
+   - Click "SEND"
 
 ### Notes
 - Both computers must be on the same network (WiFi or LAN)
 - The default port is 5555, but you can change it if needed
 - Files are saved to the selected download folder (defaults to ~/Downloads)
-- The app auto-detects your local IP address
+- Use "Test" button to verify connectivity before sending

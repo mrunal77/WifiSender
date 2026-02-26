@@ -223,20 +223,35 @@ class FileTransferApp:
         self.action_frame = tk.Frame(main_frame, bg="#F8FAFC")
         self.action_frame.pack(fill="x")
 
-        self.action_btn = tk.Button(
+        self.send_btn = tk.Button(
             self.action_frame,
-            text="SEND FILES",
+            text="SEND",
             font=("Segoe UI", 12, "bold"),
             bg="#10B981",
             fg="white",
             activebackground="#059669",
             bd=0,
-            padx=40,
+            padx=30,
             pady=12,
             cursor="hand2",
-            command=self.action_clicked
+            command=self.start_send
         )
-        self.action_btn.pack()
+        self.send_btn.pack(side="left", padx=(0, 10))
+
+        self.receive_btn = tk.Button(
+            self.action_frame,
+            text="START RECEIVING",
+            font=("Segoe UI", 12, "bold"),
+            bg="#6366F1",
+            fg="white",
+            activebackground="#4F46E5",
+            bd=0,
+            padx=30,
+            pady=12,
+            cursor="hand2",
+            command=self.start_receive
+        )
+        self.receive_btn.pack(side="left")
 
         self.progress_frame = tk.Frame(main_frame, bg="#F8FAFC")
         self.progress_frame.pack(fill="x", pady=(15, 0))
@@ -273,7 +288,7 @@ class FileTransferApp:
         if mode == "send":
             self.btn_send.configure(bg="#2563EB", fg="white", activebackground="#1D4ED8", activeforeground="white")
             self.btn_receive.configure(bg="#E2E8F0", fg="#64748B", activebackground="#CBD5E1", activeforeground="#1E293B")
-            self.action_btn.configure(text="SEND FILES", bg="#10B981", activebackground="#059669", command=self.action_clicked)
+            self.send_btn.configure(text="SEND FILES", bg="#10B981", activebackground="#059669", command=self.action_clicked)
             self.recipient_label.grid()
             self.recipient_entry.grid()
             self.select_file_btn.pack(anchor="w", pady=(0, 10))
@@ -283,7 +298,7 @@ class FileTransferApp:
         else:
             self.btn_receive.configure(bg="#2563EB", fg="white", activebackground="#1D4ED8", activeforeground="white")
             self.btn_send.configure(bg="#E2E8F0", fg="#64748B", activebackground="#CBD5E1", activeforeground="#1E293B")
-            self.action_btn.configure(text="START RECEIVING", bg="#10B981", activebackground="#059669", command=self.action_clicked)
+            self.send_btn.configure(text="START RECEIVING", bg="#10B981", activebackground="#059669", command=self.action_clicked)
             self.recipient_label.grid_remove()
             self.recipient_entry.grid_remove()
             self.select_file_btn.pack_forget()
@@ -328,7 +343,7 @@ class FileTransferApp:
             return
 
         self.is_sending = True
-        self.action_btn.configure(state="disabled", text="SENDING...")
+        self.send_btn.configure(state="disabled", text="SENDING...")
         threading.Thread(target=self.send_files_thread, args=(recipient_ip, port), daemon=True).start()
 
     def send_files_thread(self, recipient_ip, port):
@@ -348,9 +363,10 @@ class FileTransferApp:
 
                 filename = os.path.basename(file_path)
                 file_size = os.path.getsize(file_path)
-
-                client_socket.sendall(struct.pack("utf-8", filename))
-                client_socket.sendall(struct.pack(">Q", file_size))
+                
+                # Send: filename|size|
+                header = f"{filename}|{file_size}|".encode("utf-8")
+                client_socket.sendall(header)
 
                 sent = 0
                 with open(file_path, "rb") as f:
@@ -381,7 +397,7 @@ class FileTransferApp:
             self.update_status(f"Error: {str(e)}")
             messagebox.showerror("Error", str(e))
         finally:
-            self.root.after(0, lambda: self.action_btn.configure(state="normal", text="SEND FILES"))
+            self.root.after(0, lambda: self.send_btn.configure(state="normal", text="SEND FILES"))
             self.is_sending = False
 
     def start_receive(self):
@@ -396,7 +412,7 @@ class FileTransferApp:
             return
 
         self.is_receiving = True
-        self.action_btn.configure(state="disabled", text="LISTENING...")
+        self.send_btn.configure(state="disabled", text="LISTENING...")
         threading.Thread(target=self.receive_files_thread, args=(port,), daemon=True).start()
 
     def receive_files_thread(self, port):
@@ -415,16 +431,28 @@ class FileTransferApp:
                     self.update_status(f"Connection from {address[0]}")
 
                     while True:
-                        filename_bytes = client_socket.recv(1024)
-                        if filename_bytes == b"__END__":
+                        # Read header (filename|size|)
+                        header = b""
+                        while b"|" not in header:
+                            chunk = client_socket.recv(1)
+                            if not chunk:
+                                break
+                            header += chunk
+                        
+                        if header == b"__END__":
                             break
-                        if not filename_bytes:
+                        if not header:
                             break
-
-                        filename = filename_bytes.decode("utf-8")
-
-                        size_data = client_socket.recv(8)
-                        file_size = struct.unpack(">Q", size_data)[0]
+                        
+                        try:
+                            header_str = header.decode("utf-8")
+                            filename, size_str = header_str.rstrip("|").split("|")
+                            file_size = int(size_str)
+                        except:
+                            break
+                        
+                        if filename == "__END__":
+                            break
 
                         save_path = os.path.join(self.receive_folder, filename)
                         received = 0
@@ -459,10 +487,13 @@ class FileTransferApp:
                 self.update_status(f"Error: {str(e)}")
                 messagebox.showerror("Error", str(e))
         except Exception as e:
+            import traceback
+            print(f"DEBUG ERROR: {e}")
+            traceback.print_exc()
             self.update_status(f"Error: {str(e)}")
             messagebox.showerror("Error", str(e))
         finally:
-            self.root.after(0, lambda: self.action_btn.configure(state="normal", text="START RECEIVING"))
+            self.root.after(0, lambda: self.receive_btn.configure(state="normal", text="START RECEIVING"))
             self.is_receiving = False
 
     def update_status(self, text):

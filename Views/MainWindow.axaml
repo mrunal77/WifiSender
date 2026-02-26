@@ -9,7 +9,8 @@
         Title="WifiSender - File Transfer"
         Width="750" Height="720"
         MinWidth="650" MinHeight="600"
-        Background="#FAFAFA">
+        Background="#FAFAFA"
+        Icon="/Assets/appicon.ico">
 
     <Window.Styles>
         <Style Selector="Button">

@@ -1,15 +1,22 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <ApplicationIcon>Assets/appicon.ico</ApplicationIcon>
+    <AssemblyName>WifiSender</AssemblyName>
+    <Version>1.0.0</Version>
+    <Authors>WifiSender</Authors>
+    <Product>WifiSender</Product>
+    <Description>Cross-platform file transfer over WiFi or LAN</Description>
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Models\" />
-    <AvaloniaResource Include="Assets\**" />
+    <Folder Include="Models/" />
+    <AvaloniaResource Include="Assets/**" />
+    <EmbeddedResource Include="Assets/appicon.ico" />
   </ItemGroup>
 
   <ItemGroup>

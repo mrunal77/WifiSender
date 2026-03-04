@@ -83,6 +83,9 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private string _receiveButtonColor = "#FF6D00";
 
+    [ObservableProperty]
+    private int _selectedTabIndex;
+
     public ObservableCollection<string> SelectedFiles { get; } = new();
     public ObservableCollection<DiscoveredDevice> DiscoveredDevices { get; } = new();
 

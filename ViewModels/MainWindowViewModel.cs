@@ -67,6 +67,7 @@ public partial class MainWindowViewModel : ObservableObject
     private string _downloadFolder = "";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasConnectionTestResult))]
     private string _connectionTestResult = "";
 
     [ObservableProperty]
@@ -111,6 +112,10 @@ public partial class MainWindowViewModel : ObservableObject
     public ObservableCollection<string> SelectedFiles { get; } = new();
     public ObservableCollection<DiscoveredDevice> DiscoveredDevices { get; } = new();
 
+    public bool HasSelectedFiles => SelectedFiles.Count > 0;
+    public bool HasDiscoveredDevices => DiscoveredDevices.Count > 0;
+    public bool HasConnectionTestResult => !string.IsNullOrEmpty(ConnectionTestResult);
+
     public MainWindowViewModel()
     {
         LocalIp = GetLocalIpAddress();
@@ -120,6 +125,9 @@ public partial class MainWindowViewModel : ObservableObject
             app.ActualThemeVariantChanged += OnActualThemeVariantChanged;
         }
         _ = CheckFirewallAsync();
+
+        SelectedFiles.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasSelectedFiles));
+        DiscoveredDevices.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasDiscoveredDevices));
     }
 
     private void OnActualThemeVariantChanged(object? sender, EventArgs e)

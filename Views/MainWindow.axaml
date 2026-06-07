@@ -3,427 +3,739 @@
         xmlns:vm="using:WifiSender.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="750" d:DesignHeight="700"
+        mc:Ignorable="d" d:DesignWidth="780" d:DesignHeight="720"
         x:Class="WifiSender.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="WifiSender - File Transfer"
-        Width="800" Height="750"
-        MinWidth="700" MinHeight="650"
-        Background="#1C1B1F"
+        Title="WifiSender"
+        Width="780" Height="720"
+        CanResize="False"
         Icon="/Assets/appicon.ico">
 
-    <Window.Styles>
-        <Style Selector="Button">
-            <Setter Property="Background" Value="#D0BCFF"/>
-            <Setter Property="Foreground" Value="#381E72"/>
-            <Setter Property="FontFamily" Value="Inter, Segoe UI, sans-serif"/>
-            <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="Padding" Value="24,12"/>
-            <Setter Property="CornerRadius" Value="20"/>
-        </Style>
+  <Window.Styles>
+    <!-- ═══════════════════════════════════════════
+         THEME-INDEPENDENT (base values)
+         ═══════════════════════════════════════════ -->
+    <Style Selector="TextBlock.Heading">
+      <Setter Property="FontSize" Value="15"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+    </Style>
+    <Style Selector="TextBlock.Section">
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="LetterSpacing" Value="0.3"/>
+    </Style>
+    <Style Selector="TextBlock.Caption">
+      <Setter Property="FontSize" Value="12"/>
+    </Style>
+    <Style Selector="TextBlock.Small">
+      <Setter Property="FontSize" Value="11"/>
+    </Style>
 
-        <Style Selector="Button:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#E8DEF8"/>
-        </Style>
-        <Style Selector="Button:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="#D0BCFF"/>
-        </Style>
-        <Style Selector="Button:disabled">
-            <Setter Property="Opacity" Value="0.38"/>
-        </Style>
+    <Style Selector="Button">
+      <Setter Property="FontFamily" Value="Inter, Segoe UI, -apple-system, sans-serif"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Padding" Value="18,9"/>
+      <Setter Property="CornerRadius" Value="9"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <Style Selector="Button:disabled">
+      <Setter Property="Opacity" Value="0.35"/>
+    </Style>
 
-        <Style Selector="Button.Tonal">
-            <Setter Property="Background" Value="#4A4458"/>
-            <Setter Property="Foreground" Value="#E8DEF8"/>
-        </Style>
-        <Style Selector="Button.Tonal:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#5F5A6E"/>
-        </Style>
+    <Style Selector="TextBox">
+      <Setter Property="FontFamily" Value="Inter, Segoe UI, -apple-system, sans-serif"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Padding" Value="10,9"/>
+      <Setter Property="CornerRadius" Value="8"/>
+      <Setter Property="BorderThickness" Value="1"/>
+    </Style>
 
-        <Style Selector="Button.FilledSuccess">
-            <Setter Property="Background" Value="#4ADE80"/>
-            <Setter Property="Foreground" Value="#052E16"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="Padding" Value="32,16"/>
-            <Setter Property="CornerRadius" Value="24"/>
-        </Style>
-        <Style Selector="Button.FilledSuccess:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#86EFAC"/>
-        </Style>
-        <Style Selector="Button.FilledSuccess:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="#22C55E"/>
-        </Style>
+    <Style Selector="ListBox">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+    </Style>
+    <Style Selector="ListBoxItem">
+      <Setter Property="Padding" Value="10,8"/>
+      <Setter Property="Margin" Value="0,1"/>
+      <Setter Property="CornerRadius" Value="7"/>
+    </Style>
 
-        <Style Selector="Button.FilledSecondary">
-            <Setter Property="Background" Value="#CCC2DC"/>
-            <Setter Property="Foreground" Value="#332D41"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="Padding" Value="32,16"/>
-            <Setter Property="CornerRadius" Value="24"/>
-        </Style>
-        <Style Selector="Button.FilledSecondary:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#D8BEF8"/>
-        </Style>
+    <Style Selector="ProgressBar">
+      <Setter Property="CornerRadius" Value="4"/>
+      <Setter Property="Height" Value="5"/>
+    </Style>
 
-        <Style Selector="Button.FilledTertiary">
-            <Setter Property="Background" Value="#EFB8C8"/>
-            <Setter Property="Foreground" Value="#492532"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="FontSize" Value="16"/>
-            <Setter Property="Padding" Value="32,16"/>
-            <Setter Property="CornerRadius" Value="24"/>
-        </Style>
-        <Style Selector="Button.FilledTertiary:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#F4C7D5"/>
-        </Style>
+    <Style Selector="ScrollViewer">
+      <Setter Property="Background" Value="Transparent"/>
+    </Style>
 
-        <Style Selector="Button.IconButton">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Padding" Value="12"/>
-            <Setter Property="CornerRadius" Value="16"/>
-        </Style>
-        <Style Selector="Button.IconButton:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#4A4458"/>
-        </Style>
+    <Style Selector="Separator">
+      <Setter Property="Height" Value="1"/>
+      <Setter Property="Margin" Value="0"/>
+    </Style>
 
-        <Style Selector="Button.Outlined">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="#D0BCFF"/>
-            <Setter Property="BorderBrush" Value="#938F99"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="16,10"/>
-            <Setter Property="CornerRadius" Value="20"/>
-        </Style>
-        <Style Selector="Button.Outlined:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#4A4458"/>
-        </Style>
+    <!-- ═══════════════════════════════════════════
+         DARK THEME
+         ═══════════════════════════════════════════ -->
+    <Style Selector=":dark Window">
+      <Setter Property="Background" Value="#1C1C1E"/>
+    </Style>
+    <Style Selector=":dark TextBlock.Heading">
+      <Setter Property="Foreground" Value="#F2F2F7"/>
+    </Style>
+    <Style Selector=":dark TextBlock.Section">
+      <Setter Property="Foreground" Value="#98989D"/>
+    </Style>
+    <Style Selector=":dark TextBlock.Caption">
+      <Setter Property="Foreground" Value="#636366"/>
+    </Style>
+    <Style Selector=":dark TextBlock.Small">
+      <Setter Property="Foreground" Value="#636366"/>
+    </Style>
 
-        <Style Selector="TextBox">
-            <Setter Property="Background" Value="#2B2930"/>
-            <Setter Property="Foreground" Value="#E6E1E5"/>
-            <Setter Property="Padding" Value="16,12"/>
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="FontSize" Value="14"/>
-        </Style>
-        <Style Selector="TextBox:focus">
-            <Setter Property="Background" Value="#2B2930"/>
-            <Setter Property="BorderBrush" Value="#D0BCFF"/>
-            <Setter Property="BorderThickness" Value="2"/>
-        </Style>
-        <Style Selector="TextBox:pointerover">
-            <Setter Property="Background" Value="#36343B"/>
-        </Style>
+    <Style Selector=":dark Button">
+      <Setter Property="Background" Value="#0A84FF"/>
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+    </Style>
+    <Style Selector=":dark Button:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#409CFF"/>
+    </Style>
+    <Style Selector=":dark Button:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="#0068D6"/>
+    </Style>
 
-        <Style Selector="ListBox">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-        </Style>
-        <Style Selector="ListBoxItem">
-            <Setter Property="Padding" Value="16,12"/>
-            <Setter Property="Margin" Value="0,2"/>
-            <Setter Property="CornerRadius" Value="8"/>
-        </Style>
-        <Style Selector="ListBoxItem:selected">
-            <Setter Property="Background" Value="#4A4458"/>
-        </Style>
-        <Style Selector="ListBoxItem:pointerover">
-            <Setter Property="Background" Value="#36343B"/>
-        </Style>
+    <Style Selector=":dark Button.Primary">
+      <Setter Property="Background" Value="#0A84FF"/>
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+    </Style>
 
-        <Style Selector="ProgressBar">
-            <Setter Property="CornerRadius" Value="4"/>
-            <Setter Property="Height" Value="8"/>
-            <Setter Property="Background" Value="#4A4458"/>
-            <Setter Property="Foreground" Value="#D0BCFF"/>
-        </Style>
+    <Style Selector=":dark Button.Secondary">
+      <Setter Property="Background" Value="#3A3A3C"/>
+      <Setter Property="Foreground" Value="#F2F2F7"/>
+    </Style>
+    <Style Selector=":dark Button.Secondary:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#48484A"/>
+    </Style>
 
-        <Style Selector="TabItem">
-            <Setter Property="FontFamily" Value="Inter, Segoe UI, sans-serif"/>
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="FontWeight" Value="Medium"/>
-            <Setter Property="Padding" Value="24,16"/>
-            <Setter Property="CornerRadius" Value="16,16,0,0"/>
-        </Style>
-        <Style Selector="TabItem:selected">
-            <Setter Property="Background" Value="#4A4458"/>
-        </Style>
+    <Style Selector=":dark Button.Destructive">
+      <Setter Property="Background" Value="#FF453A"/>
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+    </Style>
+    <Style Selector=":dark Button.Destructive:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#FF6259"/>
+    </Style>
 
-        <Style Selector="Border.Card">
-            <Setter Property="Background" Value="#2B2930"/>
-            <Setter Property="CornerRadius" Value="12"/>
-            <Setter Property="Padding" Value="24"/>
-        </Style>
+    <Style Selector=":dark Button.Ghost">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="#0A84FF"/>
+    </Style>
+    <Style Selector=":dark Button.Ghost:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#3A3A3C"/>
+    </Style>
 
-        <Style Selector="Border.Elevated">
-            <Setter Property="Background" Value="#36343B"/>
-            <Setter Property="CornerRadius" Value="16"/>
-            <Setter Property="Padding" Value="16"/>
-        </Style>
-    </Window.Styles>
+    <Style Selector=":dark TextBox">
+      <Setter Property="Background" Value="#2C2C2E"/>
+      <Setter Property="Foreground" Value="#F2F2F7"/>
+      <Setter Property="BorderBrush" Value="#3A3A3C"/>
+    </Style>
+    <Style Selector=":dark TextBox:focus">
+      <Setter Property="BorderBrush" Value="#0A84FF"/>
+      <Setter Property="BorderThickness" Value="1.5"/>
+    </Style>
+    <Style Selector=":dark TextBox:pointerover">
+      <Setter Property="BorderBrush" Value="#48484A"/>
+    </Style>
+    <Style Selector=":dark TextBox:watermark">
+      <Setter Property="Foreground" Value="#636366"/>
+    </Style>
 
-    <DockPanel>
-        <!-- Material 3 Dark Header -->
-        <Border DockPanel.Dock="Top" Background="#1C1B1F" Padding="24,20">
-            <Border Background="#2B2930" CornerRadius="28" Padding="4">
-                <Grid ColumnDefinitions="Auto,*">
-                    <StackPanel Orientation="Horizontal" Spacing="16">
-                        <Border Background="#6750A4" CornerRadius="20" Padding="12">
-                            <TextBlock Text="📤" FontSize="24"/>
-                        </Border>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock Text="WifiSender" FontSize="22" FontWeight="SemiBold" Foreground="#E6E1E5"/>
-                            <TextBlock Text="Fast &amp; Secure File Transfer" FontSize="13" Foreground="#CAC4D0"/>
-                        </StackPanel>
-                    </StackPanel>
-                </Grid>
-            </Border>
+    <Style Selector=":dark ListBoxItem:selected">
+      <Setter Property="Background" Value="#3A3A3C"/>
+    </Style>
+    <Style Selector=":dark ListBoxItem:pointerover">
+      <Setter Property="Background" Value="#2C2C2E"/>
+    </Style>
+
+    <Style Selector=":dark ProgressBar">
+      <Setter Property="Background" Value="#3A3A3C"/>
+      <Setter Property="Foreground" Value="#0A84FF"/>
+    </Style>
+
+    <Style Selector=":dark Separator">
+      <Setter Property="Background" Value="#3A3A3C"/>
+    </Style>
+
+    <Style Selector=":dark Border.Card">
+      <Setter Property="Background" Value="#2C2C2E"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="Padding" Value="20"/>
+    </Style>
+
+    <Style Selector=":dark Border.Inset">
+      <Setter Property="Background" Value="#3A3A3C"/>
+      <Setter Property="CornerRadius" Value="9"/>
+      <Setter Property="Padding" Value="12"/>
+    </Style>
+
+    <Style Selector=":dark Border.Segment">
+      <Setter Property="Background" Value="#3A3A3C"/>
+      <Setter Property="CornerRadius" Value="9"/>
+      <Setter Property="Padding" Value="3"/>
+    </Style>
+
+    <!-- ═══════════════════════════════════════════
+         LIGHT THEME
+         ═══════════════════════════════════════════ -->
+    <Style Selector=":light Window">
+      <Setter Property="Background" Value="#F2F2F6"/>
+    </Style>
+    <Style Selector=":light TextBlock.Heading">
+      <Setter Property="Foreground" Value="#1C1C1E"/>
+    </Style>
+    <Style Selector=":light TextBlock.Section">
+      <Setter Property="Foreground" Value="#636366"/>
+    </Style>
+    <Style Selector=":light TextBlock.Caption">
+      <Setter Property="Foreground" Value="#AEAEB2"/>
+    </Style>
+    <Style Selector=":light TextBlock.Small">
+      <Setter Property="Foreground" Value="#AEAEB2"/>
+    </Style>
+
+    <Style Selector=":light Button">
+      <Setter Property="Background" Value="#007AFF"/>
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+    </Style>
+    <Style Selector=":light Button:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#3395FF"/>
+    </Style>
+    <Style Selector=":light Button:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="#0062CC"/>
+    </Style>
+
+    <Style Selector=":light Button.Primary">
+      <Setter Property="Background" Value="#007AFF"/>
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+    </Style>
+
+    <Style Selector=":light Button.Secondary">
+      <Setter Property="Background" Value="#E5E5EA"/>
+      <Setter Property="Foreground" Value="#1C1C1E"/>
+    </Style>
+    <Style Selector=":light Button.Secondary:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#D1D1D6"/>
+    </Style>
+
+    <Style Selector=":light Button.Destructive">
+      <Setter Property="Background" Value="#FF3B30"/>
+      <Setter Property="Foreground" Value="#FFFFFF"/>
+    </Style>
+    <Style Selector=":light Button.Destructive:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#FF6259"/>
+    </Style>
+
+    <Style Selector=":light Button.Ghost">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="#007AFF"/>
+    </Style>
+    <Style Selector=":light Button.Ghost:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#E5E5EA"/>
+    </Style>
+
+    <Style Selector=":light TextBox">
+      <Setter Property="Background" Value="#FFFFFF"/>
+      <Setter Property="Foreground" Value="#1C1C1E"/>
+      <Setter Property="BorderBrush" Value="#D1D1D6"/>
+    </Style>
+    <Style Selector=":light TextBox:focus">
+      <Setter Property="BorderBrush" Value="#007AFF"/>
+      <Setter Property="BorderThickness" Value="1.5"/>
+    </Style>
+    <Style Selector=":light TextBox:pointerover">
+      <Setter Property="BorderBrush" Value="#C7C7CC"/>
+    </Style>
+    <Style Selector=":light TextBox:watermark">
+      <Setter Property="Foreground" Value="#AEAEB2"/>
+    </Style>
+
+    <Style Selector=":light ListBoxItem:selected">
+      <Setter Property="Background" Value="#E5E5EA"/>
+    </Style>
+    <Style Selector=":light ListBoxItem:pointerover">
+      <Setter Property="Background" Value="#F2F2F6"/>
+    </Style>
+
+    <Style Selector=":light ProgressBar">
+      <Setter Property="Background" Value="#E5E5EA"/>
+      <Setter Property="Foreground" Value="#007AFF"/>
+    </Style>
+
+    <Style Selector=":light Separator">
+      <Setter Property="Background" Value="#D1D1D6"/>
+    </Style>
+
+    <Style Selector=":light Border.Card">
+      <Setter Property="Background" Value="#FFFFFF"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="Padding" Value="20"/>
+    </Style>
+
+    <Style Selector=":light Border.Inset">
+      <Setter Property="Background" Value="#F2F2F6"/>
+      <Setter Property="CornerRadius" Value="9"/>
+      <Setter Property="Padding" Value="12"/>
+    </Style>
+
+    <Style Selector=":light Border.Segment">
+      <Setter Property="Background" Value="#E5E5EA"/>
+      <Setter Property="CornerRadius" Value="9"/>
+      <Setter Property="Padding" Value="3"/>
+    </Style>
+  </Window.Styles>
+
+  <!-- ═══════════════════════════════════════════
+       WINDOW LAYOUT
+       ═══════════════════════════════════════════ -->
+  <DockPanel>
+    <!-- ── Header ──────────────────────────────── -->
+    <Border DockPanel.Dock="Top" Padding="24,12">
+      <Border.Styles>
+        <Style Selector=":dark Border">
+          <Setter Property="Background" Value="#1C1C1E"/>
+        </Style>
+        <Style Selector=":light Border">
+          <Setter Property="Background" Value="#F2F2F6"/>
+        </Style>
+      </Border.Styles>
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Border Background="#007AFF" CornerRadius="8" Width="30" Height="30">
+            <TextBlock Text="W" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FFFFFF"/>
+          </Border>
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock Text="WifiSender" FontSize="15" FontWeight="SemiBold" LineHeight="18">
+              <TextBlock.Styles>
+                <Style Selector=":dark TextBlock">
+                  <Setter Property="Foreground" Value="#F2F2F7"/>
+                </Style>
+                <Style Selector=":light TextBlock">
+                  <Setter Property="Foreground" Value="#1C1C1E"/>
+                </Style>
+              </TextBlock.Styles>
+            </TextBlock>
+          </StackPanel>
+        </StackPanel>
+
+        <!-- IPC badge -->
+        <Border Grid.Column="2" CornerRadius="7" Padding="8,5">
+          <Border.Styles>
+            <Style Selector=":dark Border">
+              <Setter Property="Background" Value="#2C2C2E"/>
+            </Style>
+            <Style Selector=":light Border">
+              <Setter Property="Background" Value="#FFFFFF"/>
+            </Style>
+          </Border.Styles>
+          <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="5">
+            <Border Background="#34C759" CornerRadius="3" Width="6" Height="6" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="1" Text="{Binding LocalIp}" FontSize="11" FontWeight="Medium">
+              <TextBlock.Styles>
+                <Style Selector=":dark TextBlock">
+                  <Setter Property="Foreground" Value="#98989D"/>
+                </Style>
+                <Style Selector=":light TextBlock">
+                  <Setter Property="Foreground" Value="#636366"/>
+                </Style>
+              </TextBlock.Styles>
+            </TextBlock>
+          </Grid>
         </Border>
 
-        <!-- Tab Control -->
-        <TabControl SelectedIndex="{Binding SelectedTabIndex}" Margin="24,16,24,24">
-            
-            <!-- SEND TAB -->
-            <TabItem>
-                <TabItem.Header>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="📤" FontSize="18"/>
-                        <TextBlock Text="Send" VerticalAlignment="Center" Foreground="#E6E1E5"/>
-                    </StackPanel>
-                </TabItem.Header>
-                <ScrollViewer Padding="0,24,0,0">
-                    <StackPanel Spacing="16">
-                        
-                        <!-- Connection Card -->
-                        <Border Classes="Card">
-                            <StackPanel Spacing="20">
-                                <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <Border Background="#4A4458" CornerRadius="12" Padding="10">
-                                        <TextBlock Text="🌐" FontSize="20"/>
-                                    </Border>
-                                    <TextBlock Text="Connection" FontSize="20" FontWeight="SemiBold" Foreground="#E6E1E5" VerticalAlignment="Center"/>
-                                </StackPanel>
+        <!-- Theme toggle -->
+        <Button Grid.Column="3" Command="{Binding ToggleThemeCommand}" Width="30" Height="30"
+                Padding="0" FontSize="13" ToolTip.Tip="Appearance"
+                Content="{Binding ThemeIcon}">
+          <Button.Styles>
+            <Style Selector=":dark Button">
+              <Setter Property="Background" Value="Transparent"/>
+              <Setter Property="Foreground" Value="#98989D"/>
+            </Style>
+            <Style Selector=":dark Button:pointerover /template/ ContentPresenter">
+              <Setter Property="Background" Value="#3A3A3C"/>
+            </Style>
+            <Style Selector=":light Button">
+              <Setter Property="Background" Value="Transparent"/>
+              <Setter Property="Foreground" Value="#636366"/>
+            </Style>
+            <Style Selector=":light Button:pointerover /template/ ContentPresenter">
+              <Setter Property="Background" Value="#E5E5EA"/>
+            </Style>
+          </Button.Styles>
+        </Button>
+      </Grid>
+    </Border>
 
-                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto">
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Your IP" VerticalAlignment="Center" 
-                                               Foreground="#CAC4D0" FontWeight="Medium" Margin="0,0,24,0"/>
-                                    <Border Grid.Row="0" Grid.Column="1" Background="#4A4458" CornerRadius="8" Padding="16,12" HorizontalAlignment="Left" MinWidth="180">
-                                        <TextBlock Text="{Binding LocalIp}" FontWeight="SemiBold" Foreground="#B8F0C2" FontSize="15"/>
-                                    </Border>
+    <!-- ── Content ─────────────────────────────── -->
+    <Border Opacity="{Binding ContentOpacity}" Padding="0" Background="Transparent">
+      <Border.Transitions>
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+        </Transitions>
+      </Border.Transitions>
 
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Port" VerticalAlignment="Center" 
-                                               Foreground="#CAC4D0" FontWeight="Medium" Margin="0,16,24,0"/>
-                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Port}" Width="100" HorizontalAlignment="Left" Margin="0,16,0,0"/>
+    <TabControl SelectedIndex="{Binding SelectedTabIndex}" Margin="24,4,24,24">
+      <TabControl.Transitions>
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+        </Transitions>
+      </TabControl.Transitions>
 
-                                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Send to" VerticalAlignment="Center" 
-                                               Foreground="#CAC4D0" FontWeight="Medium" Margin="0,16,24,0"/>
-                                    <Grid Grid.Row="2" Grid.Column="1" ColumnDefinitions="*,Auto" Margin="0,16,0,0">
-                                        <TextBox Text="{Binding RecipientIp}" Watermark="IP address..."/>
-                                        <Button Grid.Column="1" Content="Test" Command="{Binding TestConnectionCommand}" 
-                                                Classes="Outlined" Padding="16,10" Margin="12,0,0,0"/>
-                                    </Grid>
-                                </Grid>
-                                <TextBlock Text="{Binding ConnectionTestResult}" Foreground="#CAC4D0" FontSize="12" Margin="100,4,0,0"/>
+      <!-- ═══════════════════════════════════════════
+           SEND TAB
+           ═══════════════════════════════════════════ -->
+      <TabItem>
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal" Spacing="5" Margin="0">
+            <TextBlock Text="Send" FontSize="12" FontWeight="Medium" VerticalAlignment="Center"/>
+          </StackPanel>
+        </TabItem.Header>
+        <ScrollViewer>
+          <StackPanel Spacing="16" Margin="0,16,0,0">
 
-                                <Border Classes="Elevated">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <StackPanel>
-                                            <TextBlock Text="Find Nearby Devices" FontWeight="SemiBold" Foreground="#E6E1E5"/>
-                                            <TextBlock Text="Scan for devices on your network" FontSize="12" Foreground="#CAC4D0" Margin="0,4,0,0"/>
-                                        </StackPanel>
-                                        <Button Grid.Column="1" Content="🔍 Scan" Command="{Binding ScanDevicesCommand}"
-                                                Classes="Tonal" Padding="20,10"
-                                                IsEnabled="{Binding !IsScanning}"/>
-                                    </Grid>
-                                </Border>
+            <!-- ── Firewall Warning ────────────── -->
+            <Border CornerRadius="10" Padding="12,10" BorderThickness="1"
+                    IsVisible="{Binding IsFirewallWarningVisible}">
+              <Border.Styles>
+                <Style Selector=":dark Border">
+                  <Setter Property="Background" Value="#2C1F0A"/>
+                  <Setter Property="BorderBrush" Value="#4A3000"/>
+                </Style>
+                <Style Selector=":light Border">
+                  <Setter Property="Background" Value="#FFF9E6"/>
+                  <Setter Property="BorderBrush" Value="#FFE69C"/>
+                </Style>
+              </Border.Styles>
+              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                <TextBlock Text="⚠️" FontSize="13" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding FirewallWarningText}" 
+                           TextWrapping="Wrap" VerticalAlignment="Center" FontSize="12">
+                  <TextBlock.Styles>
+                    <Style Selector=":dark TextBlock">
+                      <Setter Property="Foreground" Value="#FDBF60"/>
+                    </Style>
+                    <Style Selector=":light TextBlock">
+                      <Setter Property="Foreground" Value="#856404"/>
+                    </Style>
+                  </TextBlock.Styles>
+                </TextBlock>
+                <Button Grid.Column="2" Content="Fix" Command="{Binding FixFirewallCommand}"
+                        Padding="10,5" FontSize="11" VerticalAlignment="Center"
+                        Classes="Ghost"/>
+              </Grid>
+            </Border>
 
-                                <Border Classes="Elevated" MinHeight="80" MaxHeight="120" IsVisible="{Binding DiscoveredDevices.Count}">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <ListBox ItemsSource="{Binding DiscoveredDevices}" SelectedItem="{Binding SelectedDevice}"
-                                                 Background="Transparent">
-                                            <ListBox.ItemTemplate>
-                                                <DataTemplate>
-                                                    <StackPanel Orientation="Horizontal" Spacing="10">
-                                                        <TextBlock Text="📱" FontSize="16" VerticalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding DisplayName}" FontSize="14" VerticalAlignment="Center" Foreground="#E6E1E5"/>
-                                                    </StackPanel>
-                                                </DataTemplate>
-                                            </ListBox.ItemTemplate>
-                                        </ListBox>
-                                        <Button Grid.Column="1" Content="Select" Command="{Binding SelectDeviceCommand}" 
-                                                CommandParameter="{Binding SelectedDevice}"
-                                                Classes="Tonal" Padding="16,8" Margin="12,0,0,0"
-                                                IsEnabled="{Binding SelectedDevice, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                                    </Grid>
-                                </Border>
-                            </StackPanel>
-                        </Border>
+            <!-- ── Connection Section ──────────── -->
+            <Border Classes="Card">
+              <StackPanel Spacing="16">
 
-                        <!-- Files Card -->
-                        <Border Classes="Card">
-                            <StackPanel Spacing="20">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <StackPanel Orientation="Horizontal" Spacing="12">
-                                        <Border Background="#4A4458" CornerRadius="12" Padding="10">
-                                            <TextBlock Text="📁" FontSize="20"/>
-                                        </Border>
-                                        <TextBlock Text="Files to Send" FontSize="20" FontWeight="SemiBold" Foreground="#E6E1E5" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12">
-                                        <Button Content="📂 Select Files" Command="{Binding SelectFilesCommand}" CommandParameter="{Binding $parent[Window]}"/>
-                                        <Button Content="🗑️ Clear" Command="{Binding ClearFilesCommand}" 
-                                                Classes="Outlined" Padding="16,10"/>
-                                    </StackPanel>
-                                </Grid>
+                <!-- Section header -->
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="Connection" Classes="Heading" VerticalAlignment="Center"/>
+                  <Button Grid.Column="1" Command="{Binding ScanDevicesCommand}"
+                          IsEnabled="{Binding !IsScanning}" Padding="16,8"
+                          Classes="Primary">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="5">
+                      <TextBlock Text="🔍" FontSize="11" VerticalAlignment="Center"/>
+                      <TextBlock Text="Scan" FontSize="13" VerticalAlignment="Center"/>
+                    </Grid>
+                  </Button>
+                </Grid>
 
-                                <Border Background="#36343B" CornerRadius="12" Padding="16" MinHeight="100" MaxHeight="150">
-                                    <ListBox ItemsSource="{Binding SelectedFiles}" Background="Transparent">
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" Spacing="10">
-                                                    <TextBlock Text="📄" FontSize="14" VerticalAlignment="Center"/>
-                                                    <TextBlock Text="{Binding}" FontSize="13" TextTrimming="CharacterEllipsis" 
-                                                               Foreground="#E6E1E5" MaxWidth="450"/>
-                                                </StackPanel>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
-                                </Border>
-                            </StackPanel>
-                        </Border>
+                <!-- Port -->
+                <Grid ColumnDefinitions="60,*" ColumnSpacing="10">
+                  <TextBlock Text="Port" Classes="Caption" VerticalAlignment="Center"/>
+                  <TextBox Grid.Column="1" Text="{Binding Port}" Width="90" HorizontalAlignment="Left"/>
+                </Grid>
 
-                        <!-- Action Button -->
-                        <Button Content="📤 SEND FILES" Command="{Binding SendFilesCommand}" CommandParameter="{Binding $parent[Window]}"
-                                Classes="FilledSuccess" HorizontalAlignment="Stretch"
-                                IsEnabled="{Binding !IsSending}"/>
+                <!-- Send to + Test -->
+                <Grid ColumnDefinitions="60,*,Auto" ColumnSpacing="10">
+                  <TextBlock Text="Send to" Classes="Caption" VerticalAlignment="Center"/>
+                  <TextBox Grid.Column="1" Text="{Binding RecipientIp}" Watermark="Enter IP address"/>
+                  <Button Grid.Column="2" Command="{Binding TestConnectionCommand}" 
+                          Classes="Secondary" Padding="14,8" MinWidth="56">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="4">
+                      <TextBlock Text="▶️" FontSize="9" VerticalAlignment="Center"/>
+                      <TextBlock Text="Test" FontSize="13" VerticalAlignment="Center"/>
+                    </Grid>
+                  </Button>
+                </Grid>
 
-                        <!-- Progress Card -->
-                        <Border Classes="Card">
-                            <StackPanel Spacing="16">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Text="{Binding Status}" FontSize="14" Foreground="#CAC4D0" TextWrapping="Wrap"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding CurrentFileProgress}" FontSize="14" 
-                                               Foreground="#D0BCFF" FontWeight="SemiBold"/>
-                                </Grid>
-                                <TextBlock Text="{Binding CurrentFileName}" FontSize="13" Foreground="#938F99" 
-                                           TextTrimming="CharacterEllipsis" FontStyle="Italic"
-                                           IsVisible="{Binding CurrentFileName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                                <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="100"/>
-                                <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsSending}">
-                                    <Border Background="#166534" CornerRadius="8" Padding="8,4">
-                                        <TextBlock Text="Sending..." Foreground="#86EFAC" FontWeight="Medium" FontSize="12"/>
-                                    </Border>
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
+                <TextBlock Text="{Binding ConnectionTestResult}" Classes="Small" Margin="70,0,0,0"/>
 
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
-            
-            <!-- RECEIVE TAB -->
-            <TabItem>
-                <TabItem.Header>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="📥" FontSize="18"/>
-                        <TextBlock Text="Receive" VerticalAlignment="Center" Foreground="#E6E1E5"/>
-                    </StackPanel>
-                </TabItem.Header>
-                <ScrollViewer Padding="0,24,0,0">
-                    <StackPanel Spacing="16">
-                        
-                        <!-- Connection Info Card -->
-                        <Border Classes="Card">
-                            <StackPanel Spacing="20">
-                                <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <Border Background="#4A4458" CornerRadius="12" Padding="10">
-                                        <TextBlock Text="🌐" FontSize="20"/>
-                                    </Border>
-                                    <TextBlock Text="Connection Info" FontSize="20" FontWeight="SemiBold" Foreground="#E6E1E5" VerticalAlignment="Center"/>
-                                </StackPanel>
-
-                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
-                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Your IP" VerticalAlignment="Center" 
-                                               Foreground="#CAC4D0" FontWeight="Medium" Margin="0,0,24,0"/>
-                                    <Border Grid.Row="0" Grid.Column="1" Background="#4A4458" CornerRadius="8" Padding="16,12" HorizontalAlignment="Left" MinWidth="180">
-                                        <TextBlock Text="{Binding LocalIp}" FontWeight="SemiBold" Foreground="#B8F0C2" FontSize="15"/>
-                                    </Border>
-
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Port" VerticalAlignment="Center" 
-                                               Foreground="#CAC4D0" FontWeight="Medium" Margin="0,16,24,0"/>
-                                    <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Port}" Width="100" HorizontalAlignment="Left" Margin="0,16,0,0"/>
-                                </Grid>
-
-                                <Border Background="#4A4458" CornerRadius="12" Padding="16">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="👆" FontSize="16" VerticalAlignment="Center"/>
-                                        <TextBlock Text="Share this IP and port with the sender" Foreground="#CAC4D0" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Download Folder Card -->
-                        <Border Classes="Card">
-                            <StackPanel Spacing="20">
-                                <StackPanel Orientation="Horizontal" Spacing="12">
-                                    <Border Background="#4A4458" CornerRadius="12" Padding="10">
-                                        <TextBlock Text="📂" FontSize="20"/>
-                                    </Border>
-                                    <TextBlock Text="Save Location" FontSize="20" FontWeight="SemiBold" Foreground="#E6E1E5" VerticalAlignment="Center"/>
-                                </StackPanel>
-
-                                <Border Classes="Elevated">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <StackPanel>
-                                            <TextBlock Text="Download folder" FontWeight="Medium" Foreground="#E6E1E5"/>
-                                            <TextBlock Text="{Binding DownloadFolder, FallbackValue='Default: ~/Downloads'}" 
-                                                       FontSize="12" Foreground="#CAC4D0" TextTrimming="CharacterEllipsis" Margin="0,4,0,0"/>
-                                        </StackPanel>
-                                        <Button Grid.Column="1" Content="Choose" Command="{Binding SelectDownloadFolderCommand}" 
-                                                CommandParameter="{Binding $parent[Window]}"
-                                                Classes="Tonal" Padding="16,8"/>
-                                    </Grid>
-                                </Border>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Action Buttons -->
-                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto">
-                            <Button Grid.Column="0" Content="📥 START RECEIVING" Command="{Binding ToggleReceivingCommand}" CommandParameter="{Binding $parent[Window]}"
-                                    Classes="FilledSecondary" HorizontalAlignment="Stretch" Margin="0,0,8,0"/>
-                            <Button Grid.Column="1" Content="⏹️ STOP" Command="{Binding StopReceivingCommand}"
-                                    Classes="FilledTertiary" HorizontalAlignment="Stretch" Margin="8,0,0,0"
-                                    IsEnabled="{Binding IsReceiving}"/>
+                <!-- Scan results -->
+                <Border IsVisible="{Binding DiscoveredDevices.Count}" Classes="Inset" Padding="8">
+                  <ListBox ItemsSource="{Binding DiscoveredDevices}" SelectedItem="{Binding SelectedDevice}"
+                           Background="Transparent" MaxHeight="130">
+                    <ListBox.ItemTemplate>
+                      <DataTemplate>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                          <Border CornerRadius="7" Width="28" Height="28">
+                            <Border.Styles>
+                              <Style Selector=":dark Border">
+                                <Setter Property="Background" Value="#3A3A3C"/>
+                              </Style>
+                              <Style Selector=":light Border">
+                                <Setter Property="Background" Value="#E5E5EA"/>
+                              </Style>
+                            </Border.Styles>
+                            <TextBlock Text="📱" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                          </Border>
+                          <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding DisplayName}" FontSize="13">
+                              <TextBlock.Styles>
+                                <Style Selector=":dark TextBlock">
+                                  <Setter Property="Foreground" Value="#F2F2F7"/>
+                                </Style>
+                                <Style Selector=":light TextBlock">
+                                  <Setter Property="Foreground" Value="#1C1C1E"/>
+                                </Style>
+                              </TextBlock.Styles>
+                            </TextBlock>
+                            <TextBlock Text="{Binding IpAddress}" Classes="Small"/>
+                          </StackPanel>
                         </Grid>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                </Border>
 
-                        <!-- Progress Card -->
-                        <Border Classes="Card">
-                            <StackPanel Spacing="16">
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <TextBlock Text="{Binding Status}" FontSize="14" Foreground="#CAC4D0" TextWrapping="Wrap"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding CurrentFileProgress}" FontSize="14" 
-                                               Foreground="#CCC2DC" FontWeight="SemiBold"/>
-                                </Grid>
-                                <TextBlock Text="{Binding CurrentFileName}" FontSize="13" Foreground="#938F99" 
-                                           TextTrimming="CharacterEllipsis" FontStyle="Italic"
-                                           IsVisible="{Binding CurrentFileName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                                <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="100"/>
-                                <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsReceiving}">
-                                    <Border Background="#7D2E3F" CornerRadius="8" Padding="8,4">
-                                        <TextBlock Text="Receiving..." Foreground="#F4C7D5" FontWeight="Medium" FontSize="12"/>
-                                    </Border>
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
+                <Button Command="{Binding SelectDeviceCommand}" 
+                        CommandParameter="{Binding SelectedDevice}"
+                        Classes="Secondary" HorizontalAlignment="Stretch" Padding="0,10"
+                        IsEnabled="{Binding SelectedDevice, Converter={x:Static ObjectConverters.IsNotNull}}">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6" HorizontalAlignment="Center">
+                    <TextBlock Text="✓" FontSize="12" VerticalAlignment="Center"/>
+                    <TextBlock Text="Select Device" FontSize="13" VerticalAlignment="Center"/>
+                  </Grid>
+                </Button>
+              </StackPanel>
+            </Border>
 
-                    </StackPanel>
-                </ScrollViewer>
-            </TabItem>
-            
-        </TabControl>
-    </DockPanel>
+            <!-- ── Files Section ───────────────── -->
+            <Border Classes="Card">
+              <StackPanel Spacing="14">
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                  <TextBlock Text="Files" Classes="Heading" VerticalAlignment="Center"/>
+                  <Button Grid.Column="1" Command="{Binding SelectFilesCommand}" 
+                          CommandParameter="{Binding $parent[Window]}" Classes="Secondary" Padding="14,8">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="5">
+                      <TextBlock Text="+" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                      <TextBlock Text="Select" FontSize="13" VerticalAlignment="Center"/>
+                    </Grid>
+                  </Button>
+                  <Button Grid.Column="2" Command="{Binding ClearFilesCommand}" 
+                          Padding="12,8" Classes="Ghost">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="4">
+                      <TextBlock Text="✕" FontSize="11" VerticalAlignment="Center"/>
+                      <TextBlock Text="Clear" FontSize="13" VerticalAlignment="Center"/>
+                    </Grid>
+                  </Button>
+                </Grid>
+
+                <Border Classes="Inset" Padding="8" MinHeight="68" MaxHeight="150">
+                  <ListBox ItemsSource="{Binding SelectedFiles}" Background="Transparent"
+                           IsVisible="{Binding SelectedFiles.Count}">
+                    <ListBox.ItemTemplate>
+                      <DataTemplate>
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                          <TextBlock Text="📄" FontSize="11" VerticalAlignment="Center"/>
+                          <TextBlock Text="{Binding}" FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center">
+                            <TextBlock.Styles>
+                              <Style Selector=":dark TextBlock">
+                                <Setter Property="Foreground" Value="#98989D"/>
+                              </Style>
+                              <Style Selector=":light TextBlock">
+                                <Setter Property="Foreground" Value="#636366"/>
+                              </Style>
+                            </TextBlock.Styles>
+                          </TextBlock>
+                        </Grid>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <!-- ── Send Action ─────────────────── -->
+            <Button Command="{Binding SendFilesCommand}" CommandParameter="{Binding $parent[Window]}"
+                    Classes="Primary" HorizontalAlignment="Stretch" IsEnabled="{Binding !IsSending}"
+                    FontSize="15" Padding="0,14" CornerRadius="12">
+              <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="8" HorizontalAlignment="Center">
+                <TextBlock Text="▲" FontSize="11" VerticalAlignment="Center"/>
+                <TextBlock Text="Send Files" FontSize="15" VerticalAlignment="Center"/>
+              </Grid>
+            </Button>
+
+            <!-- ── Progress ────────────────────── -->
+            <Border Classes="Inset" Padding="14"
+                    IsVisible="{Binding IsSending}">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="{Binding Status}" Classes="Small" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock Grid.Column="1" Text="{Binding CurrentFileProgress}" FontSize="11" FontWeight="SemiBold">
+                    <TextBlock.Styles>
+                      <Style Selector=":dark TextBlock">
+                        <Setter Property="Foreground" Value="#0A84FF"/>
+                      </Style>
+                      <Style Selector=":light TextBlock">
+                        <Setter Property="Foreground" Value="#007AFF"/>
+                      </Style>
+                    </TextBlock.Styles>
+                  </TextBlock>
+                </Grid>
+                <TextBlock Text="{Binding CurrentFileName}" Classes="Small" TextTrimming="CharacterEllipsis" FontStyle="Italic"
+                           IsVisible="{Binding CurrentFileName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="100"/>
+              </StackPanel>
+            </Border>
+
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+      <!-- ═══════════════════════════════════════════
+           RECEIVE TAB
+           ═══════════════════════════════════════════ -->
+      <TabItem>
+        <TabItem.Header>
+          <StackPanel Orientation="Horizontal" Spacing="5">
+            <TextBlock Text="Receive" FontSize="12" FontWeight="Medium" VerticalAlignment="Center"/>
+          </StackPanel>
+        </TabItem.Header>
+        <ScrollViewer>
+          <StackPanel Spacing="16" Margin="0,16,0,0">
+
+            <!-- ── Connection Card ──────────────── -->
+            <Border Classes="Card">
+              <StackPanel Spacing="16">
+                <TextBlock Text="Connection Info" Classes="Heading"/>
+
+                <Grid ColumnDefinitions="60,*" RowDefinitions="Auto,Auto" RowSpacing="10">
+                  <TextBlock Text="Your IP" Classes="Caption" VerticalAlignment="Center"/>
+                  <Border Grid.Column="1" Classes="Inset" Padding="10,8" HorizontalAlignment="Left" MinWidth="150">
+                    <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="6">
+                      <Border Background="#34C759" CornerRadius="3" Width="6" Height="6" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="{Binding LocalIp}" FontWeight="SemiBold" FontSize="13">
+                        <TextBlock.Styles>
+                          <Style Selector=":dark TextBlock">
+                            <Setter Property="Foreground" Value="#30D158"/>
+                          </Style>
+                          <Style Selector=":light TextBlock">
+                            <Setter Property="Foreground" Value="#248A3D"/>
+                          </Style>
+                        </TextBlock.Styles>
+                      </TextBlock>
+                    </Grid>
+                  </Border>
+
+                  <TextBlock Grid.Row="1" Text="Port" Classes="Caption" VerticalAlignment="Center"/>
+                  <Border Grid.Row="1" Grid.Column="1" Classes="Inset" Padding="10,8" HorizontalAlignment="Left">
+                    <TextBlock Text="{Binding Port}" FontWeight="SemiBold" FontSize="13">
+                      <TextBlock.Styles>
+                        <Style Selector=":dark TextBlock">
+                          <Setter Property="Foreground" Value="#F2F2F7"/>
+                        </Style>
+                        <Style Selector=":light TextBlock">
+                          <Setter Property="Foreground" Value="#1C1C1E"/>
+                        </Style>
+                      </TextBlock.Styles>
+                    </TextBlock>
+                  </Border>
+                </Grid>
+
+                <Border Classes="Inset" Padding="10">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="7">
+                    <TextBlock Text="ℹ️" FontSize="11" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="Share the IP and port above with the sender" 
+                               Classes="Small" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                  </Grid>
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <!-- ── Download Location ────────────── -->
+            <Border Classes="Card">
+              <StackPanel Spacing="14">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="Save Location" Classes="Heading" VerticalAlignment="Center"/>
+                  <Button Grid.Column="1" Content="Choose" Command="{Binding SelectDownloadFolderCommand}" 
+                          CommandParameter="{Binding $parent[Window]}" Classes="Secondary"/>
+                </Grid>
+
+                <Border Classes="Inset" Padding="10">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                    <TextBlock Text="📂" FontSize="13" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="{Binding DownloadFolder, FallbackValue='Default: ~/Downloads'}" 
+                               FontSize="12" Foreground="#AEAEB2" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                  </Grid>
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <!-- ── Action Buttons ──────────────── -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+              <Button Command="{Binding ToggleReceivingCommand}" 
+                      CommandParameter="{Binding $parent[Window]}"
+                      Classes="Primary" HorizontalAlignment="Stretch"
+                      FontSize="15" Padding="0,14" CornerRadius="12">
+                <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="7" HorizontalAlignment="Center">
+                  <TextBlock Text="▼" FontSize="10" VerticalAlignment="Center"/>
+                  <TextBlock Text="Start Receiving" FontSize="15" VerticalAlignment="Center"/>
+                </Grid>
+              </Button>
+              <Button Command="{Binding StopReceivingCommand}"
+                      Classes="Destructive" HorizontalAlignment="Stretch"
+                      FontSize="15" Padding="0,14" CornerRadius="12"
+                      IsEnabled="{Binding IsReceiving}">
+                <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="6" HorizontalAlignment="Center">
+                  <TextBlock Text="■" FontSize="12" VerticalAlignment="Center"/>
+                  <TextBlock Text="Stop" FontSize="15" VerticalAlignment="Center"/>
+                </Grid>
+              </Button>
+            </Grid>
+
+            <!-- ── Progress ────────────────────── -->
+            <Border Classes="Inset" Padding="14"
+                    IsVisible="{Binding IsReceiving}">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="{Binding Status}" Classes="Small" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock Grid.Column="1" Text="{Binding CurrentFileProgress}" FontSize="11" FontWeight="SemiBold">
+                    <TextBlock.Styles>
+                      <Style Selector=":dark TextBlock">
+                        <Setter Property="Foreground" Value="#0A84FF"/>
+                      </Style>
+                      <Style Selector=":light TextBlock">
+                        <Setter Property="Foreground" Value="#007AFF"/>
+                      </Style>
+                    </TextBlock.Styles>
+                  </TextBlock>
+                </Grid>
+                <TextBlock Text="{Binding CurrentFileName}" Classes="Small" TextTrimming="CharacterEllipsis" FontStyle="Italic"
+                           IsVisible="{Binding CurrentFileName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                <ProgressBar Value="{Binding Progress}" Minimum="0" Maximum="100"/>
+              </StackPanel>
+            </Border>
+
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+
+    </TabControl>
+    </Border>
+  </DockPanel>
 
 </Window>

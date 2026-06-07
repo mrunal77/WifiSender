@@ -52,6 +52,29 @@ dotnet publish -c Release -o ./publish
 - Files are saved to the selected download folder (defaults to ~/Downloads)
 - Use "Test" button to verify connectivity before sending
 
+## Firewall Configuration
+
+Device discovery uses **UDP port 5556**, and file transfers use **TCP port 5555** (configurable).
+Your firewall must allow these ports for the app to work properly.
+
+### Automatic Setup (Linux)
+
+Run the included script with admin privileges:
+
+```bash
+sudo scripts/setup-firewall.sh
+```
+
+The script auto-detects your firewall (ufw, firewalld, iptables, or nftables) and adds the
+required rules. You can also click "Fix Firewall" in the app's Send tab, which launches the
+script via Polkit (pkexec).
+
+### Manual Setup
+
+- **ufw**: `sudo ufw allow 5556/udp && sudo ufw allow 5555/tcp`
+- **firewalld**: `sudo firewall-cmd --add-port=5556/udp --add-port=5555/tcp && sudo firewall-cmd --runtime-to-permanent`
+- **iptables**: `sudo iptables -A INPUT -p udp --dport 5556 -j ACCEPT && sudo iptables -A INPUT -p tcp --dport 5555 -j ACCEPT`
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

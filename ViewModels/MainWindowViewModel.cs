@@ -1,14 +1,18 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using Avalonia.Styling;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -86,12 +90,44 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     private int _selectedTabIndex;
 
+    [ObservableProperty]
+    private bool _isFirewallWarningVisible;
+
+    [ObservableProperty]
+    private string _firewallWarningText = "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ThemeIcon))]
+    private bool _isDarkTheme = true;
+
+    [ObservableProperty]
+    private double _contentOpacity = 1;
+
+    public string ThemeIcon => IsDarkTheme ? "🌙" : "☀️";
+
+    private bool IsSystemDarkTheme() =>
+        Application.Current?.ActualThemeVariant is { } v && v == ThemeVariant.Dark;
+
     public ObservableCollection<string> SelectedFiles { get; } = new();
     public ObservableCollection<DiscoveredDevice> DiscoveredDevices { get; } = new();
 
     public MainWindowViewModel()
     {
         LocalIp = GetLocalIpAddress();
+        IsDarkTheme = IsSystemDarkTheme();
+        if (Application.Current is { } app)
+        {
+            app.ActualThemeVariantChanged += OnActualThemeVariantChanged;
+        }
+        _ = CheckFirewallAsync();
+    }
+
+    private void OnActualThemeVariantChanged(object? sender, EventArgs e)
+    {
+        if (Application.Current?.RequestedThemeVariant == ThemeVariant.Default)
+        {
+            IsDarkTheme = IsSystemDarkTheme();
+        }
     }
 
     partial void OnIsReceivingChanged(bool value)
@@ -252,10 +288,12 @@ public partial class MainWindowViewModel : ObservableObject
             if (DiscoveredDevices.Count == 0)
             {
                 Status = "No devices found. Make sure receiver is running on other device.";
+                await CheckFirewallAsync();
             }
             else
             {
                 Status = $"Found {DiscoveredDevices.Count} device(s)";
+                IsFirewallWarningVisible = false;
             }
         }
         catch (OperationCanceledException)
@@ -665,6 +703,164 @@ public partial class MainWindowViewModel : ObservableObject
     {
         SelectedFiles.Clear();
         Status = "Files cleared";
+    }
+
+    [RelayCommand]
+    private async Task ToggleTheme()
+    {
+        ContentOpacity = 0;
+        await Task.Delay(200);
+        IsDarkTheme = !IsDarkTheme;
+        if (Application.Current is { } app)
+        {
+            app.RequestedThemeVariant = IsDarkTheme ? ThemeVariant.Dark : ThemeVariant.Light;
+        }
+        ContentOpacity = 1;
+    }
+
+    private async Task CheckFirewallAsync()
+    {
+        try
+        {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                IsFirewallWarningVisible = false;
+                return;
+            }
+
+            if (await IsUfwActiveAsync())
+            {
+                if (!await UfwHasPortAsync(DiscoveryPort))
+                {
+                    FirewallWarningText = "Firewall (ufw) is blocking device discovery. " +
+                        $"Allow UDP port {DiscoveryPort} to scan for devices.";
+                    IsFirewallWarningVisible = true;
+                    return;
+                }
+                IsFirewallWarningVisible = false;
+                return;
+            }
+
+            if (await IsFirewalldActiveAsync())
+            {
+                if (!await FirewalldHasPortAsync(DiscoveryPort))
+                {
+                    FirewallWarningText = "Firewall (firewalld) is blocking device discovery. " +
+                        $"Allow UDP port {DiscoveryPort} to scan for devices.";
+                    IsFirewallWarningVisible = true;
+                    return;
+                }
+                IsFirewallWarningVisible = false;
+                return;
+            }
+
+            IsFirewallWarningVisible = false;
+        }
+        catch
+        {
+            IsFirewallWarningVisible = false;
+        }
+    }
+
+    private static async Task<string> RunCommandAsync(string fileName, string args)
+    {
+        try
+        {
+            using var proc = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = fileName,
+                    Arguments = args,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false
+                }
+            };
+            proc.Start();
+            string output = await proc.StandardOutput.ReadToEndAsync();
+            await proc.StandardError.ReadToEndAsync();
+            await proc.WaitForExitAsync();
+            return output;
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    private static async Task<bool> IsUfwActiveAsync()
+    {
+        string output = await RunCommandAsync("ufw", "status");
+        return output.Contains("Status: active");
+    }
+
+    private static async Task<bool> UfwHasPortAsync(int port)
+    {
+        string output = await RunCommandAsync("ufw", "status verbose");
+        return output.Contains($"{port}/udp") || output.Contains($"{port}");
+    }
+
+    private static async Task<bool> IsFirewalldActiveAsync()
+    {
+        string output = await RunCommandAsync("firewall-cmd", "--state");
+        return output.Trim() == "running";
+    }
+
+    private static async Task<bool> FirewalldHasPortAsync(int port)
+    {
+        string output = await RunCommandAsync("firewall-cmd", "--list-ports");
+        return output.Contains($"{port}/udp");
+    }
+
+    [RelayCommand]
+    private async Task FixFirewall()
+    {
+        string scriptPath = Path.Combine(AppContext.BaseDirectory, "scripts", "setup-firewall.sh");
+        if (!File.Exists(scriptPath))
+        {
+            scriptPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "scripts", "setup-firewall.sh");
+        }
+
+        if (!File.Exists(scriptPath))
+        {
+            Status = "Firewall script not found. Run: sudo scripts/setup-firewall.sh";
+            return;
+        }
+
+        // Try pkexec (Polkit) first
+        if (await TryLaunchElevatedAsync("pkexec", $"\"{scriptPath}\""))
+            return;
+
+        // Fall back to xdg-su (LXDE/XFCE)
+        if (await TryLaunchElevatedAsync("xdg-su", $"-c \"{scriptPath}\""))
+            return;
+
+        // Last fallback: show manual instruction
+        Status = $"Run manually in terminal: sudo {scriptPath}";
+    }
+
+    private static async Task<bool> TryLaunchElevatedAsync(string tool, string arguments)
+    {
+        try
+        {
+            using var proc = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = tool,
+                    Arguments = arguments,
+                    UseShellExecute = true
+                }
+            };
+            proc.Start();
+            await proc.WaitForExitAsync();
+            return proc.ExitCode == 0;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static string FormatFileSize(long bytes)

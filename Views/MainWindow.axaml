@@ -1,13 +1,14 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:vm="using:WifiSender.ViewModels"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+         xmlns:vm="using:WifiSender.ViewModels"
+         xmlns:conv="using:WifiSender.Converters"
+         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="620"
-        x:Class="WifiSender.Views.MainWindow"
-        x:DataType="vm:MainWindowViewModel"
-        Title="WifiSender"
-         Width="680" Height="620"
+         x:Class="WifiSender.Views.MainWindow"
+         x:DataType="vm:MainWindowViewModel"
+         Title="WifiSender"
+         SizeToContent="WidthAndHeight"
          MinWidth="520" MinHeight="460"
          Icon="/Assets/appicon.ico">
 
@@ -83,8 +84,8 @@
       <Setter Property="Height" Value="1"/><Setter Property="Margin" Value="0"/>
     </Style>
 
-    <!-- DARK THEME -->
-    <Style Selector=":dark Window"><Setter Property="Background" Value="#1C1C1E"/></Style>
+    <!-- DARK THEME (dark grey) -->
+    <Style Selector=":dark Window"><Setter Property="Background" Value="#2D2D2D"/></Style>
     <Style Selector=":dark TextBlock.Heading"><Setter Property="Foreground" Value="#F2F2F7"/></Style>
     <Style Selector=":dark TextBlock.Section"><Setter Property="Foreground" Value="#98989D"/></Style>
     <Style Selector=":dark TextBlock.Caption"><Setter Property="Foreground" Value="#636366"/></Style>
@@ -94,24 +95,23 @@
     <Style Selector=":dark Button:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#409CFF"/></Style>
     <Style Selector=":dark Button:pressed /template/ ContentPresenter"><Setter Property="Background" Value="#0068D6"/></Style>
     <Style Selector=":dark Button.Primary"><Setter Property="Background" Value="#0A84FF"/><Setter Property="Foreground" Value="#FFFFFF"/></Style>
-    <Style Selector=":dark Button.Secondary"><Setter Property="Background" Value="#3A3A3C"/><Setter Property="Foreground" Value="#F2F2F7"/></Style>
-    <Style Selector=":dark Button.Secondary:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#48484A"/></Style>
+    <Style Selector=":dark Button.Secondary"><Setter Property="Background" Value="#404040"/><Setter Property="Foreground" Value="#F2F2F7"/></Style>
+    <Style Selector=":dark Button.Secondary:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#505050"/></Style>
     <Style Selector=":dark Button.Destructive"><Setter Property="Background" Value="#FF453A"/><Setter Property="Foreground" Value="#FFFFFF"/></Style>
     <Style Selector=":dark Button.Destructive:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#FF6259"/></Style>
     <Style Selector=":dark Button.Ghost"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="#0A84FF"/></Style>
-    <Style Selector=":dark Button.Ghost:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#3A3A3C"/></Style>
+    <Style Selector=":dark Button.Ghost:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#404040"/></Style>
 
-    <Style Selector=":dark TextBox"><Setter Property="Background" Value="#2C2C2E"/><Setter Property="Foreground" Value="#F2F2F7"/><Setter Property="BorderBrush" Value="#3A3A3C"/></Style>
+    <Style Selector=":dark TextBox"><Setter Property="Background" Value="#3A3A3A"/><Setter Property="Foreground" Value="#F2F2F7"/><Setter Property="BorderBrush" Value="#505050"/></Style>
     <Style Selector=":dark TextBox:focus"><Setter Property="BorderBrush" Value="#0A84FF"/><Setter Property="BorderThickness" Value="1.5"/></Style>
-    <Style Selector=":dark TextBox:pointerover"><Setter Property="BorderBrush" Value="#48484A"/></Style>
-    <Style Selector=":dark TextBox:watermark"><Setter Property="Foreground" Value="#636366"/></Style>
-    <Style Selector=":dark ListBoxItem:selected"><Setter Property="Background" Value="#3A3A3C"/></Style>
-    <Style Selector=":dark ListBoxItem:pointerover"><Setter Property="Background" Value="#2C2C2E"/></Style>
-    <Style Selector=":dark ProgressBar"><Setter Property="Background" Value="#3A3A3C"/><Setter Property="Foreground" Value="#0A84FF"/></Style>
-    <Style Selector=":dark Separator"><Setter Property="Background" Value="#3A3A3C"/></Style>
-    <Style Selector=":dark Border.Card"><Setter Property="Background" Value="#2C2C2E"/><Setter Property="CornerRadius" Value="12"/><Setter Property="Padding" Value="20"/></Style>
-    <Style Selector=":dark Border.Inset"><Setter Property="Background" Value="#3A3A3C"/><Setter Property="CornerRadius" Value="9"/><Setter Property="Padding" Value="12"/></Style>
-    <Style Selector=":dark Border.Segment"><Setter Property="Background" Value="#3A3A3C"/><Setter Property="CornerRadius" Value="9"/><Setter Property="Padding" Value="3"/></Style>
+    <Style Selector=":dark TextBox:pointerover"><Setter Property="BorderBrush" Value="#606060"/></Style>
+    <Style Selector=":dark ListBoxItem:selected"><Setter Property="Background" Value="#404040"/></Style>
+    <Style Selector=":dark ListBoxItem:pointerover"><Setter Property="Background" Value="#3A3A3A"/></Style>
+    <Style Selector=":dark ProgressBar"><Setter Property="Background" Value="#404040"/><Setter Property="Foreground" Value="#0A84FF"/></Style>
+    <Style Selector=":dark Separator"><Setter Property="Background" Value="#404040"/></Style>
+    <Style Selector=":dark Border.Card"><Setter Property="Background" Value="#3A3A3A"/><Setter Property="CornerRadius" Value="12"/><Setter Property="Padding" Value="20"/></Style>
+    <Style Selector=":dark Border.Inset"><Setter Property="Background" Value="#404040"/><Setter Property="CornerRadius" Value="9"/><Setter Property="Padding" Value="12"/></Style>
+    <Style Selector=":dark Border.Segment"><Setter Property="Background" Value="#404040"/><Setter Property="CornerRadius" Value="9"/><Setter Property="Padding" Value="3"/></Style>
 
     <!-- LIGHT THEME -->
     <Style Selector=":light Window"><Setter Property="Background" Value="#F2F2F6"/></Style>
@@ -134,7 +134,6 @@
     <Style Selector=":light TextBox"><Setter Property="Background" Value="#FFFFFF"/><Setter Property="Foreground" Value="#1C1C1E"/><Setter Property="BorderBrush" Value="#D1D1D6"/></Style>
     <Style Selector=":light TextBox:focus"><Setter Property="BorderBrush" Value="#007AFF"/><Setter Property="BorderThickness" Value="1.5"/></Style>
     <Style Selector=":light TextBox:pointerover"><Setter Property="BorderBrush" Value="#C7C7CC"/></Style>
-    <Style Selector=":light TextBox:watermark"><Setter Property="Foreground" Value="#AEAEB2"/></Style>
     <Style Selector=":light ListBoxItem:selected"><Setter Property="Background" Value="#E5E5EA"/></Style>
     <Style Selector=":light ListBoxItem:pointerover"><Setter Property="Background" Value="#F2F2F6"/></Style>
     <Style Selector=":light ProgressBar"><Setter Property="Background" Value="#E5E5EA"/><Setter Property="Foreground" Value="#007AFF"/></Style>
@@ -158,10 +157,10 @@
     <!-- ═══════ HEADER ═══════ -->
     <Border DockPanel.Dock="Top" Padding="24,12">
       <Border.Styles>
-        <Style Selector=":dark Border"><Setter Property="Background" Value="#1C1C1E"/></Style>
+        <Style Selector=":dark Border"><Setter Property="Background" Value="#2D2D2D"/></Style>
         <Style Selector=":light Border"><Setter Property="Background" Value="#F2F2F6"/></Style>
       </Border.Styles>
-      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
         <StackPanel Orientation="Horizontal" Spacing="10">
           <Border Background="#007AFF" CornerRadius="8" Width="30" Height="30">
             <PathIcon Data="{StaticResource IconWifi}" Foreground="White"
@@ -177,7 +176,7 @@
 
         <Border Grid.Column="2" CornerRadius="7" Padding="8,5">
           <Border.Styles>
-            <Style Selector=":dark Border"><Setter Property="Background" Value="#2C2C2E"/></Style>
+            <Style Selector=":dark Border"><Setter Property="Background" Value="#3A3A3A"/></Style>
             <Style Selector=":light Border"><Setter Property="Background" Value="#FFFFFF"/></Style>
           </Border.Styles>
           <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="5">
@@ -192,7 +191,8 @@
         </Border>
 
         <Button Grid.Column="3" Command="{Binding ToggleThemeCommand}" Width="30" Height="30"
-                Padding="0" FontSize="13" ToolTip.Tip="Appearance"
+                Padding="0" FontSize="14" ToolTip.Tip="Toggle theme"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                 Content="{Binding ThemeIcon}">
           <Button.Styles>
             <Style Selector=":dark Button"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="#98989D"/></Style>
@@ -255,22 +255,22 @@
                   <TextBlock Grid.Column="1" Text="Connection" Classes="Heading" VerticalAlignment="Center"/>
                   <Button Grid.Column="2" Command="{Binding ScanDevicesCommand}"
                           IsEnabled="{Binding !IsScanning}" Width="34" Height="34" Padding="0"
-                          Classes="Primary" VerticalAlignment="Center">
+                          Classes="Primary" VerticalAlignment="Center"
+                          ToolTip.Tip="Scan for devices">
                     <PathIcon Data="{StaticResource IconSearch}"
-                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                              Opacity="{Binding IsScanning, Converter={x:Static conv:BoolToOpacity.Instance}}"/>
                   </Button>
                 </Grid>
 
                 <!-- Port row -->
-                <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                  <TextBlock Text="Port" Classes="Caption" VerticalAlignment="Center"/>
-                  <TextBox Text="{Binding Port}" MinWidth="80" MaxWidth="120" HorizontalAlignment="Left"/>
-                </Grid>
+                <TextBox Grid.Row="1" Text="{Binding Port}" MinWidth="100" MaxWidth="120"
+                         HorizontalAlignment="Left" MaxLength="5"/>
 
                 <!-- Send-to row -->
                 <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
                   <TextBlock Text="Send to" Classes="Caption" VerticalAlignment="Center"/>
-                  <TextBox Grid.Column="1" Text="{Binding RecipientIp}" Watermark="Enter IP address"/>
+                  <TextBox Grid.Column="1" Text="{Binding RecipientIp}"/>
                   <Button Grid.Column="2" Command="{Binding TestConnectionCommand}"
                           Classes="Secondary" Width="34" Height="34" Padding="0" VerticalAlignment="Center">
                     <PathIcon Data="{StaticResource IconPlay}"
@@ -318,7 +318,7 @@
                 <!-- Select device button -->
                 <Button Grid.Row="5" Command="{Binding SelectDeviceCommand}" CommandParameter="{Binding SelectedDevice}"
                         Classes="Secondary" HorizontalAlignment="Center" Width="34" Height="34" Padding="0"
-                        IsEnabled="{Binding SelectedDevice, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        IsEnabled="{Binding SelectedDevice, Converter={x:Static conv:ObjectConverters.IsNotNull}}">
                   <PathIcon Data="{StaticResource IconCheck}"
                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Button>
@@ -372,10 +372,13 @@
 
             <!-- ── Send Action ── -->
             <Button Grid.Row="3" Command="{Binding SendFilesCommand}" CommandParameter="{Binding $parent[Window]}"
-                    Classes="Primary" HorizontalAlignment="Center" Width="44" Height="44" Padding="0"
-                    IsEnabled="{Binding !IsSending}" CornerRadius="22">
-              <PathIcon Data="{StaticResource IconUpload}" Width="20" Height="20" Foreground="White"
-                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    Classes="Primary" HorizontalAlignment="Center" MinWidth="160" Padding="24,14"
+                    CornerRadius="10" ToolTip.Tip="Send files (Enter)">
+              <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                <PathIcon Data="{StaticResource IconUpload}" Width="20" Height="20"
+                          VerticalAlignment="Center"/>
+                <TextBlock Text="Send Files" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+              </StackPanel>
             </Button>
 
             <!-- ── Progress ── -->
@@ -391,7 +394,7 @@
                   </TextBlock>
                 </Grid>
                 <TextBlock Grid.Row="1" Text="{Binding CurrentFileName}" Classes="Small" TextTrimming="CharacterEllipsis" FontStyle="Italic"
-                           IsVisible="{Binding CurrentFileName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                           IsVisible="{Binding HasCurrentFile}"/>
                 <ProgressBar Grid.Row="2" Value="{Binding Progress}" Minimum="0" Maximum="100"/>
               </Grid>
             </Border>
@@ -434,7 +437,7 @@
                       </TextBlock>
                     </Grid>
                   </Border>
-                  <TextBlock Grid.Row="1" Grid.Column="0" Text="Port" Classes="Caption" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Row="1" Grid.Column="0" Text="Port number" Classes="Caption" VerticalAlignment="Center"/>
                   <Border Grid.Row="1" Grid.Column="1" Classes="Inset" Padding="10,8" HorizontalAlignment="Left">
                     <TextBlock Text="{Binding Port}" FontWeight="SemiBold" FontSize="13">
                       <TextBlock.Styles>
@@ -477,32 +480,33 @@
 
                 <!-- Path display -->
                 <Border Grid.Row="1" Classes="Inset" Padding="10">
-                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                    <PathIcon Data="{StaticResource IconFolder}" VerticalAlignment="Center">
-                      <PathIcon.Styles>
-                        <Style Selector=":dark PathIcon"><Setter Property="Foreground" Value="#636366"/></Style>
-                        <Style Selector=":light PathIcon"><Setter Property="Foreground" Value="#AEAEB2"/></Style>
-                      </PathIcon.Styles>
-                    </PathIcon>
-                    <TextBlock Grid.Column="1" Text="{Binding DownloadFolder, FallbackValue='Default: ~/Downloads'}"
-                               FontSize="12" Foreground="#AEAEB2" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                  </Grid>
+                  <TextBlock Text="{Binding DownloadFolder, FallbackValue='Default: ~/Downloads'}"
+                             FontSize="12" Foreground="#AEAEB2" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                 </Border>
               </Grid>
             </Border>
 
             <!-- ── Action Buttons ── -->
-            <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="8" VerticalAlignment="Center">
+            <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="12" VerticalAlignment="Center">
               <Button Command="{Binding ToggleReceivingCommand}" CommandParameter="{Binding $parent[Window]}"
-                      Classes="Primary" HorizontalAlignment="Center" Width="44" Height="44" Padding="0" CornerRadius="22">
-                <PathIcon Data="{StaticResource IconDownload}" Width="20" Height="20" Foreground="White"
-                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      Classes="Primary" HorizontalAlignment="Stretch" Padding="20,14" CornerRadius="10"
+                      IsVisible="{Binding !IsReceiving}">
+                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                  <PathIcon Data="{StaticResource IconPlay}" Width="20" Height="20"
+                            VerticalAlignment="Center"/>
+                  <TextBlock Text="Start Receiving" FontSize="14" FontWeight="Bold"
+                             VerticalAlignment="Center"/>
+                </StackPanel>
               </Button>
               <Button Command="{Binding StopReceivingCommand}"
-                      Classes="Destructive" HorizontalAlignment="Center" Width="44" Height="44" Padding="0" CornerRadius="22"
-                      IsEnabled="{Binding IsReceiving}">
-                <PathIcon Data="{StaticResource IconStop}" Width="18" Height="18" Foreground="White"
-                          HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      Classes="Destructive" HorizontalAlignment="Stretch" Padding="20,14" CornerRadius="10"
+                      IsVisible="{Binding IsReceiving}">
+                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                  <PathIcon Data="{StaticResource IconStop}" Width="20" Height="20"
+                            VerticalAlignment="Center"/>
+                  <TextBlock Text="Stop" FontSize="14" FontWeight="Bold"
+                             VerticalAlignment="Center"/>
+                </StackPanel>
               </Button>
             </Grid>
 
@@ -519,7 +523,7 @@
                   </TextBlock>
                 </Grid>
                 <TextBlock Grid.Row="1" Text="{Binding CurrentFileName}" Classes="Small" TextTrimming="CharacterEllipsis" FontStyle="Italic"
-                           IsVisible="{Binding CurrentFileName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                           IsVisible="{Binding HasCurrentFile}"/>
                 <ProgressBar Grid.Row="2" Value="{Binding Progress}" Minimum="0" Maximum="100"/>
               </Grid>
             </Border>

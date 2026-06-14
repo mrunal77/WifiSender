@@ -43,12 +43,24 @@ public partial class MainWindowViewModel : ObservableObject
     };
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SendFilesCommand))]
     private string _localIp = "0.0.0.0";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SendFilesCommand))]
     private string _port = "5555";
 
+    partial void OnPortChanged(string value)
+    {
+        var clean = new string(value?.Where(char.IsDigit).ToArray() ?? []);
+        if (clean.Length > 1)
+            clean = clean.TrimStart('0');
+        if (clean != value)
+            Port = clean;
+    }
+
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SendFilesCommand))]
     private string _recipientIp = "";
 
     [ObservableProperty]
@@ -58,9 +70,13 @@ public partial class MainWindowViewModel : ObservableObject
     private double _progress;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReceiveButtonText))]
     private bool _isReceiving;
 
+    public string ReceiveButtonText => IsReceiving ? "Stop" : "Start Receiving";
+
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SendFilesCommand))]
     private bool _isSending;
 
     [ObservableProperty]
@@ -71,6 +87,7 @@ public partial class MainWindowViewModel : ObservableObject
     private string _connectionTestResult = "";
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCurrentFile))]
     private string _currentFileName = "";
 
     [ObservableProperty]
@@ -81,12 +98,6 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private DiscoveredDevice? _selectedDevice;
-
-    [ObservableProperty]
-    private string _receiveButtonText = "START RECEIVING";
-
-    [ObservableProperty]
-    private string _receiveButtonColor = "#FF6D00";
 
     [ObservableProperty]
     private int _selectedTabIndex;
@@ -115,6 +126,7 @@ public partial class MainWindowViewModel : ObservableObject
     public bool HasSelectedFiles => SelectedFiles.Count > 0;
     public bool HasDiscoveredDevices => DiscoveredDevices.Count > 0;
     public bool HasConnectionTestResult => !string.IsNullOrEmpty(ConnectionTestResult);
+    public bool HasCurrentFile => !string.IsNullOrEmpty(CurrentFileName);
 
     public MainWindowViewModel()
     {
@@ -126,7 +138,11 @@ public partial class MainWindowViewModel : ObservableObject
         }
         _ = CheckFirewallAsync();
 
-        SelectedFiles.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasSelectedFiles));
+        SelectedFiles.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(HasSelectedFiles));
+            SendFilesCommand.NotifyCanExecuteChanged();
+        };
         DiscoveredDevices.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasDiscoveredDevices));
     }
 
@@ -136,12 +152,6 @@ public partial class MainWindowViewModel : ObservableObject
         {
             IsDarkTheme = IsSystemDarkTheme();
         }
-    }
-
-    partial void OnIsReceivingChanged(bool value)
-    {
-        ReceiveButtonText = value ? "STOP" : "START RECEIVING";
-        ReceiveButtonColor = value ? "#FF1744" : "#FF6D00";
     }
 
     private string GetLocalIpAddress()
@@ -333,21 +343,15 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
+    public bool CanSendFiles() =>
+        SelectedFiles.Count > 0
+        && !string.IsNullOrWhiteSpace(RecipientIp)
+        && int.TryParse(Port, out int p) && p > 0 && p <= 65535
+        && !IsSending;
+
+    [RelayCommand(CanExecute = nameof(CanSendFiles))]
     private async Task SendFiles(Window? window)
     {
-        if (SelectedFiles.Count == 0)
-        {
-            Status = "No files selected! Click 'Select Files' first.";
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(RecipientIp))
-        {
-            Status = "Enter recipient IP address!";
-            return;
-        }
-
         if (!int.TryParse(Port, out int port) || port <= 0 || port > 65535)
         {
             Status = "Invalid port number!";
@@ -505,7 +509,7 @@ public partial class MainWindowViewModel : ObservableObject
 
             string hostName = Environment.MachineName;
 
-            while (!_cts.Token.IsCancellationRequested)
+            while (_cts is { Token: { IsCancellationRequested: false } })
             {
                 try
                 {
@@ -871,7 +875,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    private static string FormatFileSize(long bytes)
+    public static string FormatFileSize(long bytes)
     {
         string[] suffixes = { "B", "KB", "MB", "GB", "TB" };
         int suffixIndex = 0;

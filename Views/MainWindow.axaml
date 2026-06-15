@@ -84,35 +84,32 @@
       <Setter Property="Height" Value="1"/><Setter Property="Margin" Value="0"/>
     </Style>
 
-    <!-- DARK THEME (dark grey) -->
-    <Style Selector=":dark Window"><Setter Property="Background" Value="#2D2D2D"/></Style>
-    <Style Selector=":dark TextBlock.Heading"><Setter Property="Foreground" Value="#F2F2F7"/></Style>
-    <Style Selector=":dark TextBlock.Section"><Setter Property="Foreground" Value="#98989D"/></Style>
-    <Style Selector=":dark TextBlock.Caption"><Setter Property="Foreground" Value="#636366"/></Style>
-    <Style Selector=":dark TextBlock.Small"><Setter Property="Foreground" Value="#636366"/></Style>
-
-    <Style Selector=":dark Button"><Setter Property="Background" Value="#0A84FF"/><Setter Property="Foreground" Value="#FFFFFF"/></Style>
-    <Style Selector=":dark Button:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#409CFF"/></Style>
-    <Style Selector=":dark Button:pressed /template/ ContentPresenter"><Setter Property="Background" Value="#0068D6"/></Style>
-    <Style Selector=":dark Button.Primary"><Setter Property="Background" Value="#0A84FF"/><Setter Property="Foreground" Value="#FFFFFF"/></Style>
-    <Style Selector=":dark Button.Secondary"><Setter Property="Background" Value="#404040"/><Setter Property="Foreground" Value="#F2F2F7"/></Style>
-    <Style Selector=":dark Button.Secondary:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#505050"/></Style>
-    <Style Selector=":dark Button.Destructive"><Setter Property="Background" Value="#FF453A"/><Setter Property="Foreground" Value="#FFFFFF"/></Style>
-    <Style Selector=":dark Button.Destructive:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#FF6259"/></Style>
-    <Style Selector=":dark Button.Ghost"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="#0A84FF"/></Style>
-    <Style Selector=":dark Button.Ghost:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#404040"/></Style>
-
-    <Style Selector=":dark TextBox"><Setter Property="Background" Value="#3A3A3A"/><Setter Property="Foreground" Value="#F2F2F7"/><Setter Property="BorderBrush" Value="#505050"/></Style>
-    <Style Selector=":dark TextBox:focus"><Setter Property="BorderBrush" Value="#0A84FF"/><Setter Property="BorderThickness" Value="1.5"/></Style>
-    <Style Selector=":dark TextBox:pointerover"><Setter Property="BorderBrush" Value="#606060"/></Style>
-    <Style Selector=":dark ListBoxItem:selected"><Setter Property="Background" Value="#404040"/></Style>
-    <Style Selector=":dark ListBoxItem:pointerover"><Setter Property="Background" Value="#3A3A3A"/></Style>
-    <Style Selector=":dark ProgressBar"><Setter Property="Background" Value="#404040"/><Setter Property="Foreground" Value="#0A84FF"/></Style>
-    <Style Selector=":dark Separator"><Setter Property="Background" Value="#404040"/></Style>
-    <Style Selector=":dark Border.Card"><Setter Property="Background" Value="#3A3A3A"/><Setter Property="CornerRadius" Value="12"/><Setter Property="Padding" Value="20"/></Style>
-    <Style Selector=":dark Border.Inset"><Setter Property="Background" Value="#404040"/><Setter Property="CornerRadius" Value="9"/><Setter Property="Padding" Value="12"/></Style>
-    <Style Selector=":dark Border.Segment"><Setter Property="Background" Value="#404040"/><Setter Property="CornerRadius" Value="9"/><Setter Property="Padding" Value="3"/></Style>
-
+    <!-- DARK THEME (monochrome grey) -->
+    <Style Selector=":dark Window"><Setter Property="Background" Value="#424242"/></Style>
+    <Style Selector=":dark TextBlock.Heading"><Setter Property="Foreground" Value="#FFFFFF"/></Style>
+    <Style Selector=":dark TextBlock.Section"><Setter Property="Foreground" Value="#E0E0E0"/></Style>
+    <Style Selector=":dark TextBlock.Caption"><Setter Property="Foreground" Value="#BDBDBD"/></Style>
+    <Style Selector=":dark TextBlock.Small"><Setter Property="Foreground" Value="#BDBDBD"/></Style>
+    <Style Selector=":dark Button"><Setter Property="Background" Value="#616161"/><Setter Property="Foreground" Value="#FFFFFF"/></Style>
+    <Style Selector=":dark Button:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#757575"/></Style>
+    <Style Selector=":dark Button:pressed /template/ ContentPresenter"><Setter Property="Background" Value="#424242"/></Style>
+    <Style Selector=":dark Button.Primary"><Setter Property="Background" Value="#616161"/><Setter Property="Foreground" Value="#FFFFFF"/></Style>
+    <Style Selector=":dark Button.Secondary"><Setter Property="Background" Value="#525252"/><Setter Property="Foreground" Value="#FFFFFF"/></Style>
+    <Style Selector=":dark Button.Secondary:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#5E5E5E"/></Style>
+    <Style Selector=":dark Button.Destructive"><Setter Property="Background" Value="#757575"/><Setter Property="Foreground" Value="#FFFFFF"/></Style>
+    <Style Selector=":dark Button.Destructive:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#888888"/></Style>
+    <Style Selector=":dark Button.Ghost"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="#E0E0E0"/></Style>
+    <Style Selector=":dark Button.Ghost:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#525252"/></Style>
+    <Style Selector=":dark TextBox"><Setter Property="Background" Value="#525252"/><Setter Property="Foreground" Value="#FFFFFF"/><Setter Property="BorderBrush" Value="#666666"/></Style>
+    <Style Selector=":dark TextBox:focus"><Setter Property="BorderBrush" Value="#9E9E9E"/><Setter Property="BorderThickness" Value="1.5"/></Style>
+    <Style Selector=":dark TextBox:pointerover"><Setter Property="BorderBrush" Value="#757575"/></Style>
+    <Style Selector=":dark ListBoxItem:selected"><Setter Property="Background" Value="#525252"/></Style>
+    <Style Selector=":dark ListBoxItem:pointerover"><Setter Property="Background" Value="#4A4A4A"/></Style>
+    <Style Selector=":dark ProgressBar"><Setter Property="Background" Value="#525252"/><Setter Property="Foreground" Value="#9E9E9E"/></Style>
+    <Style Selector=":dark Separator"><Setter Property="Background" Value="#666666"/></Style>
+    <Style Selector=":dark Border.Card"><Setter Property="Background" Value="#4A4A4A"/><Setter Property="CornerRadius" Value="12"/><Setter Property="Padding" Value="20"/></Style>
+    <Style Selector=":dark Border.Inset"><Setter Property="Background" Value="#525252"/><Setter Property="CornerRadius" Value="9"/><Setter Property="Padding" Value="12"/></Style>
+    <Style Selector=":dark Border.Segment"><Setter Property="Background" Value="#525252"/><Setter Property="CornerRadius" Value="9"/><Setter Property="Padding" Value="3"/></Style>
     <!-- LIGHT THEME -->
     <Style Selector=":light Window"><Setter Property="Background" Value="#F2F2F6"/></Style>
     <Style Selector=":light TextBlock.Heading"><Setter Property="Foreground" Value="#1C1C1E"/></Style>
@@ -120,23 +117,23 @@
     <Style Selector=":light TextBlock.Caption"><Setter Property="Foreground" Value="#AEAEB2"/></Style>
     <Style Selector=":light TextBlock.Small"><Setter Property="Foreground" Value="#AEAEB2"/></Style>
 
-    <Style Selector=":light Button"><Setter Property="Background" Value="#007AFF"/><Setter Property="Foreground" Value="#FFFFFF"/></Style>
+    <Style Selector=":light Button"><Setter Property="Background" Value="#757575"/><Setter Property="Foreground" Value="#FFFFFF"/></Style>
     <Style Selector=":light Button:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#3395FF"/></Style>
     <Style Selector=":light Button:pressed /template/ ContentPresenter"><Setter Property="Background" Value="#0062CC"/></Style>
-    <Style Selector=":light Button.Primary"><Setter Property="Background" Value="#007AFF"/><Setter Property="Foreground" Value="#FFFFFF"/></Style>
+    <Style Selector=":light Button.Primary"><Setter Property="Background" Value="#757575"/><Setter Property="Foreground" Value="#FFFFFF"/></Style>
     <Style Selector=":light Button.Secondary"><Setter Property="Background" Value="#E5E5EA"/><Setter Property="Foreground" Value="#1C1C1E"/></Style>
     <Style Selector=":light Button.Secondary:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#D1D1D6"/></Style>
     <Style Selector=":light Button.Destructive"><Setter Property="Background" Value="#FF3B30"/><Setter Property="Foreground" Value="#FFFFFF"/></Style>
     <Style Selector=":light Button.Destructive:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#FF6259"/></Style>
-    <Style Selector=":light Button.Ghost"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="#007AFF"/></Style>
+    <Style Selector=":light Button.Ghost"><Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="#757575"/></Style>
     <Style Selector=":light Button.Ghost:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#E5E5EA"/></Style>
 
     <Style Selector=":light TextBox"><Setter Property="Background" Value="#FFFFFF"/><Setter Property="Foreground" Value="#1C1C1E"/><Setter Property="BorderBrush" Value="#D1D1D6"/></Style>
-    <Style Selector=":light TextBox:focus"><Setter Property="BorderBrush" Value="#007AFF"/><Setter Property="BorderThickness" Value="1.5"/></Style>
+    <Style Selector=":light TextBox:focus"><Setter Property="BorderBrush" Value="#757575"/><Setter Property="BorderThickness" Value="1.5"/></Style>
     <Style Selector=":light TextBox:pointerover"><Setter Property="BorderBrush" Value="#C7C7CC"/></Style>
     <Style Selector=":light ListBoxItem:selected"><Setter Property="Background" Value="#E5E5EA"/></Style>
     <Style Selector=":light ListBoxItem:pointerover"><Setter Property="Background" Value="#F2F2F6"/></Style>
-    <Style Selector=":light ProgressBar"><Setter Property="Background" Value="#E5E5EA"/><Setter Property="Foreground" Value="#007AFF"/></Style>
+    <Style Selector=":light ProgressBar"><Setter Property="Background" Value="#E5E5EA"/><Setter Property="Foreground" Value="#757575"/></Style>
     <Style Selector=":light Separator"><Setter Property="Background" Value="#D1D1D6"/></Style>
     <Style Selector=":light Border.Card"><Setter Property="Background" Value="#FFFFFF"/><Setter Property="CornerRadius" Value="12"/><Setter Property="Padding" Value="20"/></Style>
     <Style Selector=":light Border.Inset"><Setter Property="Background" Value="#F2F2F6"/><Setter Property="CornerRadius" Value="9"/><Setter Property="Padding" Value="12"/></Style>
@@ -157,18 +154,18 @@
     <!-- ═══════ HEADER ═══════ -->
     <Border DockPanel.Dock="Top" Padding="24,12">
       <Border.Styles>
-        <Style Selector=":dark Border"><Setter Property="Background" Value="#2D2D2D"/></Style>
+        <Style Selector=":dark Border"><Setter Property="Background" Value="#1E1E1E"/></Style>
         <Style Selector=":light Border"><Setter Property="Background" Value="#F2F2F6"/></Style>
       </Border.Styles>
       <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
         <StackPanel Orientation="Horizontal" Spacing="10">
-          <Border Background="#007AFF" CornerRadius="8" Width="30" Height="30">
-            <PathIcon Data="{StaticResource IconWifi}" Foreground="White"
-                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          <Border Background="#757575" CornerRadius="8" Width="30" Height="30">
+          <PathIcon Data="{StaticResource IconWifi}" Foreground="#FFFFFF"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
           </Border>
           <TextBlock Text="WifiSender" FontSize="15" FontWeight="SemiBold" LineHeight="18" VerticalAlignment="Center">
             <TextBlock.Styles>
-              <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#F2F2F7"/></Style>
+              <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#FFFFFF"/></Style>
               <Style Selector=":light TextBlock"><Setter Property="Foreground" Value="#1C1C1E"/></Style>
             </TextBlock.Styles>
           </TextBlock>
@@ -176,14 +173,14 @@
 
         <Border Grid.Column="2" CornerRadius="7" Padding="8,5">
           <Border.Styles>
-            <Style Selector=":dark Border"><Setter Property="Background" Value="#3A3A3A"/></Style>
+            <Style Selector=":dark Border"><Setter Property="Background" Value="#333333"/></Style>
             <Style Selector=":light Border"><Setter Property="Background" Value="#FFFFFF"/></Style>
           </Border.Styles>
           <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="5">
-            <Border Background="#34C759" CornerRadius="3" Width="6" Height="6" VerticalAlignment="Center"/>
+            <Border Background="#9E9E9E" CornerRadius="3" Width="6" Height="6" VerticalAlignment="Center"/>
             <TextBlock Grid.Column="1" Text="{Binding LocalIp}" FontSize="11" FontWeight="Medium">
               <TextBlock.Styles>
-                <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#98989D"/></Style>
+                <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#E0E0E0"/></Style>
                 <Style Selector=":light TextBlock"><Setter Property="Foreground" Value="#636366"/></Style>
               </TextBlock.Styles>
             </TextBlock>
@@ -226,7 +223,7 @@
             <Border Grid.Row="0" CornerRadius="10" Padding="12,10" BorderThickness="1"
                     IsVisible="{Binding IsFirewallWarningVisible}">
               <Border.Styles>
-                <Style Selector=":dark Border"><Setter Property="Background" Value="#2C1F0A"/><Setter Property="BorderBrush" Value="#4A3000"/></Style>
+                <Style Selector=":dark Border"><Setter Property="Background" Value="#2E2E2E"/><Setter Property="BorderBrush" Value="#525252"/></Style>
                 <Style Selector=":light Border"><Setter Property="Background" Value="#FFF9E6"/><Setter Property="BorderBrush" Value="#FFE69C"/></Style>
               </Border.Styles>
               <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
@@ -234,7 +231,7 @@
                 <TextBlock Grid.Column="1" Text="{Binding FirewallWarningText}"
                            TextWrapping="Wrap" VerticalAlignment="Center" FontSize="12">
                   <TextBlock.Styles>
-                    <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#FDBF60"/></Style>
+                    <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#9E9E9E"/></Style>
                     <Style Selector=":light TextBlock"><Setter Property="Foreground" Value="#856404"/></Style>
                   </TextBlock.Styles>
                 </TextBlock>
@@ -289,7 +286,7 @@
                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
                           <Border CornerRadius="7" Width="28" Height="28">
                             <Border.Styles>
-                              <Style Selector=":dark Border"><Setter Property="Background" Value="#3A3A3C"/></Style>
+            <Style Selector=":dark Border"><Setter Property="Background" Value="#333333"/></Style>
                               <Style Selector=":light Border"><Setter Property="Background" Value="#E5E5EA"/></Style>
                             </Border.Styles>
                             <PathIcon Data="{StaticResource IconDevice}"
@@ -303,7 +300,7 @@
                           <StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <TextBlock Text="{Binding DisplayName}" FontSize="13">
                               <TextBlock.Styles>
-                                <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#F2F2F7"/></Style>
+                                <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#FFFFFF"/></Style>
                                 <Style Selector=":light TextBlock"><Setter Property="Foreground" Value="#1C1C1E"/></Style>
                               </TextBlock.Styles>
                             </TextBlock>
@@ -358,7 +355,7 @@
                           </PathIcon>
                           <TextBlock Grid.Column="1" Text="{Binding}" FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center">
                             <TextBlock.Styles>
-                              <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#98989D"/></Style>
+                              <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#B3B3B3"/></Style>
                               <Style Selector=":light TextBlock"><Setter Property="Foreground" Value="#636366"/></Style>
                             </TextBlock.Styles>
                           </TextBlock>
@@ -388,8 +385,8 @@
                   <TextBlock Text="{Binding Status}" Classes="Small" TextTrimming="CharacterEllipsis"/>
                   <TextBlock Grid.Column="1" Text="{Binding CurrentFileProgress}" FontSize="11" FontWeight="SemiBold">
                     <TextBlock.Styles>
-                      <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#0A84FF"/></Style>
-                      <Style Selector=":light TextBlock"><Setter Property="Foreground" Value="#007AFF"/></Style>
+                      <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#9E9E9E"/></Style>
+                      <Style Selector=":light TextBlock"><Setter Property="Foreground" Value="#757575"/></Style>
                     </TextBlock.Styles>
                   </TextBlock>
                 </Grid>
@@ -428,11 +425,11 @@
                   <TextBlock Grid.Row="0" Grid.Column="0" Text="Your IP" Classes="Caption" VerticalAlignment="Center"/>
                   <Border Grid.Row="0" Grid.Column="1" Classes="Inset" Padding="10,8" HorizontalAlignment="Left" MinWidth="150">
                     <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="6">
-                      <Border Background="#34C759" CornerRadius="3" Width="6" Height="6" VerticalAlignment="Center"/>
+                      <Border Background="#9E9E9E" CornerRadius="3" Width="6" Height="6" VerticalAlignment="Center"/>
                       <TextBlock Grid.Column="1" Text="{Binding LocalIp}" FontWeight="SemiBold" FontSize="13">
                         <TextBlock.Styles>
-                          <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#30D158"/></Style>
-                          <Style Selector=":light TextBlock"><Setter Property="Foreground" Value="#248A3D"/></Style>
+                          <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#BDBDBD"/></Style>
+                          <Style Selector=":light TextBlock"><Setter Property="Foreground" Value="#424242"/></Style>
                         </TextBlock.Styles>
                       </TextBlock>
                     </Grid>
@@ -441,7 +438,7 @@
                   <Border Grid.Row="1" Grid.Column="1" Classes="Inset" Padding="10,8" HorizontalAlignment="Left">
                     <TextBlock Text="{Binding Port}" FontWeight="SemiBold" FontSize="13">
                       <TextBlock.Styles>
-                        <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#F2F2F7"/></Style>
+                        <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#FFFFFF"/></Style>
                         <Style Selector=":light TextBlock"><Setter Property="Foreground" Value="#1C1C1E"/></Style>
                       </TextBlock.Styles>
                     </TextBlock>
@@ -517,8 +514,8 @@
                   <TextBlock Text="{Binding Status}" Classes="Small" TextTrimming="CharacterEllipsis"/>
                   <TextBlock Grid.Column="1" Text="{Binding CurrentFileProgress}" FontSize="11" FontWeight="SemiBold">
                     <TextBlock.Styles>
-                      <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#0A84FF"/></Style>
-                      <Style Selector=":light TextBlock"><Setter Property="Foreground" Value="#007AFF"/></Style>
+                      <Style Selector=":dark TextBlock"><Setter Property="Foreground" Value="#9E9E9E"/></Style>
+                      <Style Selector=":light TextBlock"><Setter Property="Foreground" Value="#757575"/></Style>
                     </TextBlock.Styles>
                   </TextBlock>
                 </Grid>

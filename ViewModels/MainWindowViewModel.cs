@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -29,8 +31,6 @@ public class DiscoveredDevice
 public partial class MainWindowViewModel : ObservableObject
 {
     private TcpListener? _server;
-    private TcpClient? _client;
-    private NetworkStream? _stream;
     private CancellationTokenSource? _cts;
     private UdpClient? _udpScanner;
     private CancellationTokenSource? _scanCts;
@@ -62,6 +62,15 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendFilesCommand))]
     private string _recipientIp = "";
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SendFilesCommand))]
+    private string _recipientIps = "";
+
+    partial void OnRecipientIpsChanged(string value)
+    {
+        RecipientIp = GetRecipientTargets(value).FirstOrDefault() ?? "";
+    }
 
     [ObservableProperty]
     private string _status = "Ready";
@@ -183,6 +192,56 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    private IReadOnlyList<string> GetBroadcastAddresses()
+    {
+        var broadcasts = new List<string>();
+
+        foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces())
+        {
+            if (networkInterface.OperationalStatus != OperationalStatus.Up)
+                continue;
+
+            if (networkInterface.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+                continue;
+
+            foreach (var unicastAddress in networkInterface.GetIPProperties().UnicastAddresses)
+            {
+                if (unicastAddress.Address.AddressFamily != AddressFamily.InterNetwork)
+                    continue;
+
+                var ipBytes = unicastAddress.Address.GetAddressBytes();
+                var maskBytes = unicastAddress.IPv4Mask.GetAddressBytes();
+                var broadcastBytes = new byte[4];
+
+                for (int i = 0; i < 4; i++)
+                    broadcastBytes[i] = (byte)(ipBytes[i] | ~maskBytes[i]);
+
+                var broadcast = new IPAddress(broadcastBytes).ToString();
+                if (!broadcasts.Contains(broadcast))
+                    broadcasts.Add(broadcast);
+            }
+        }
+
+        if (broadcasts.Count == 0)
+            broadcasts.Add($"{GetNetworkPrefix()}.255");
+
+        return broadcasts;
+    }
+
+    private IReadOnlyList<string> GetRecipientTargets()
+    {
+        return GetRecipientTargets(RecipientIps);
+    }
+
+    private static IReadOnlyList<string> GetRecipientTargets(string? value)
+    {
+        return (value ?? "")
+            .Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(ip => !string.IsNullOrWhiteSpace(ip))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+
     [RelayCommand]
     private async Task SelectFiles(Window? window)
     {
@@ -248,31 +307,37 @@ public partial class MainWindowViewModel : ObservableObject
             _udpScanner.Client.Bind(new IPEndPoint(IPAddress.Any, DiscoveryPort));
             _udpScanner.EnableBroadcast = true;
 
-            // Send broadcast to discover devices
-            string broadcastIp = $"{GetNetworkPrefix()}.255";
+            var broadcastAddresses = GetBroadcastAddresses();
+            Status = $"Scanning {broadcastAddresses.Count} network broadcast address(es)...";
+
             string discoveryMsg = $"WIFISENDER_DISCOVERY|{LocalIp}|{Port}";
+            byte[] data = Encoding.UTF8.GetBytes(discoveryMsg);
 
             for (int i = 0; i < 3; i++)
             {
                 if (_scanCts.Token.IsCancellationRequested) break;
-                byte[] data = Encoding.UTF8.GetBytes(discoveryMsg);
-                await _udpScanner.SendAsync(data, data.Length, new IPEndPoint(IPAddress.Parse(broadcastIp), DiscoveryPort));
+
+                foreach (var broadcastIp in broadcastAddresses)
+                {
+                    if (_scanCts.Token.IsCancellationRequested) break;
+                    await _udpScanner.SendAsync(data, data.Length, new IPEndPoint(IPAddress.Parse(broadcastIp), DiscoveryPort));
+                }
+
                 await Task.Delay(500);
             }
 
-            // Listen for responses for limited time
             var endTime = DateTime.UtcNow.AddSeconds(5);
-            
+
             while (DateTime.UtcNow < endTime && !_scanCts.Token.IsCancellationRequested)
             {
                 try
                 {
-                    using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
-                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_scanCts.Token, cts.Token);
-                    
+                    using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_scanCts.Token, timeoutCts.Token);
+
                     var result = await _udpScanner.ReceiveAsync(linkedCts.Token);
                     string response = Encoding.UTF8.GetString(result.Buffer);
-                    
+
                     if (response.StartsWith("WIFISENDER_RESPONSE|"))
                     {
                         var parts = response.Split('|');
@@ -296,11 +361,16 @@ public partial class MainWindowViewModel : ObservableObject
                         }
                     }
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException) when (_scanCts.Token.IsCancellationRequested)
                 {
                     break;
                 }
-                catch { }
+                catch (OperationCanceledException)
+                {
+                }
+                catch (SocketException)
+                {
+                }
             }
 
             if (DiscoveredDevices.Count == 0)
@@ -336,7 +406,7 @@ public partial class MainWindowViewModel : ObservableObject
         if (device != null)
         {
             SelectedDevice = device;
-            RecipientIp = device.IpAddress;
+            RecipientIps = device.IpAddress;
             if (!string.IsNullOrEmpty(device.Port))
                 Port = device.Port;
             Status = $"Selected: {device.DisplayName}";
@@ -345,13 +415,20 @@ public partial class MainWindowViewModel : ObservableObject
 
     public bool CanSendFiles() =>
         SelectedFiles.Count > 0
-        && !string.IsNullOrWhiteSpace(RecipientIp)
+        && GetRecipientTargets().Count > 0
         && int.TryParse(Port, out int p) && p > 0 && p <= 65535
         && !IsSending;
 
     [RelayCommand(CanExecute = nameof(CanSendFiles))]
     private async Task SendFiles(Window? window)
     {
+        var recipients = GetRecipientTargets();
+        if (recipients.Count == 0)
+        {
+            Status = "Enter one or more receiver IP addresses";
+            return;
+        }
+
         if (!int.TryParse(Port, out int port) || port <= 0 || port > 65535)
         {
             Status = "Invalid port number!";
@@ -359,93 +436,113 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         IsSending = true;
-        Status = $"Connecting to {RecipientIp}:{port}...";
         Progress = 0;
+        CurrentFileName = "";
+        CurrentFileProgress = "";
 
         try
         {
-            _client = new TcpClient();
-            _client.SendBufferSize = BufferSize;
-            _client.ReceiveBufferSize = BufferSize;
-            await _client.ConnectAsync(RecipientIp, port);
-            _stream = _client.GetStream();
-
-            Status = "Connected! Sending files...";
-
-            int totalFiles = SelectedFiles.Count;
-            long totalBytes = 0;
-
-            foreach (var f in SelectedFiles)
+            for (int i = 0; i < recipients.Count; i++)
             {
-                if (File.Exists(f))
-                    totalBytes += new FileInfo(f).Length;
+                var recipient = recipients[i];
+                Progress = (i * 100.0) / recipients.Count;
+                Status = $"[{i + 1}/{recipients.Count}] Connecting to {recipient}:{port}...";
+
+                try
+                {
+                    await SendFilesToRecipientAsync(recipient, port, i, recipients.Count);
+                    Status = $"[{i + 1}/{recipients.Count}] Sent to {recipient}";
+                }
+                catch (Exception ex)
+                {
+                    Status = $"[{i + 1}/{recipients.Count}] Failed to send to {recipient}: {ex.Message}";
+                }
             }
 
-            long sentTotal = 0;
-
-            for (int i = 0; i < totalFiles; i++)
-            {
-                string filePath = SelectedFiles[i];
-
-                if (!File.Exists(filePath))
-                {
-                    Status = $"File not found: {Path.GetFileName(filePath)}";
-                    continue;
-                }
-
-                string fileName = Path.GetFileName(filePath);
-                long fileSize = new FileInfo(filePath).Length;
-
-                CurrentFileName = fileName;
-
-                byte[] fileNameBytes = Encoding.UTF8.GetBytes(fileName);
-                byte[] fileNameLengthBytes = BitConverter.GetBytes(fileNameBytes.Length);
-                byte[] fileSizeBytes = BitConverter.GetBytes(fileSize);
-
-                await _stream.WriteAsync(fileNameLengthBytes);
-                await _stream.WriteAsync(fileNameBytes);
-                await _stream.WriteAsync(fileSizeBytes);
-
-                await using var fileStream = File.OpenRead(filePath);
-                byte[] buffer = new byte[BufferSize];
-                long sent = 0;
-                int bytesRead;
-
-                while ((bytesRead = await fileStream.ReadAsync(buffer)) > 0)
-                {
-                    await _stream.WriteAsync(buffer.AsMemory(0, bytesRead));
-                    sent += bytesRead;
-                    sentTotal += bytesRead;
-
-                    double fileProgress = (sent * 100.0) / fileSize;
-                    double totalProgress = (sentTotal * 100.0) / totalBytes;
-
-                    Progress = totalProgress;
-                    CurrentFileProgress = $"{FormatFileSize(sent)} / {FormatFileSize(fileSize)}";
-                    Status = $"Sending: {fileName} ({fileProgress:F1}%)";
-                }
-
-                Status = $"Sent {i + 1}/{totalFiles}: {fileName}";
-            }
-
-            byte[] endMarker = BitConverter.GetBytes((int)0);
-            await _stream.WriteAsync(endMarker);
-
-            Status = $"All files sent successfully! ({FormatFileSize(totalBytes)})";
+            Status = "Finished sending to all receivers";
             Progress = 100;
             CurrentFileName = "";
             CurrentFileProgress = "";
         }
-        catch (Exception ex)
-        {
-            Status = $"Error: {ex.Message}";
-        }
         finally
         {
             IsSending = false;
-            _stream?.Close();
-            _client?.Close();
         }
+    }
+
+    private async Task SendFilesToRecipientAsync(string recipientIp, int port, int recipientIndex, int recipientCount)
+    {
+        using var client = new TcpClient();
+        client.SendBufferSize = BufferSize;
+        client.ReceiveBufferSize = BufferSize;
+        await client.ConnectAsync(recipientIp, port);
+
+        await using var stream = client.GetStream();
+
+        Status = $"[{recipientIndex + 1}/{recipientCount}] Connected to {recipientIp}. Sending files...";
+
+        int totalFiles = SelectedFiles.Count;
+        long totalBytes = 0;
+
+        foreach (var f in SelectedFiles)
+        {
+            if (File.Exists(f))
+                totalBytes += new FileInfo(f).Length;
+        }
+
+        if (totalBytes == 0)
+            throw new InvalidOperationException("No selected files could be sent.");
+
+        long sentTotal = 0;
+        double recipientBaseProgress = (recipientIndex * 100.0) / recipientCount;
+
+        for (int i = 0; i < totalFiles; i++)
+        {
+            string filePath = SelectedFiles[i];
+
+            if (!File.Exists(filePath))
+            {
+                Status = $"[{recipientIndex + 1}/{recipientCount}] File not found: {Path.GetFileName(filePath)}";
+                continue;
+            }
+
+            string fileName = Path.GetFileName(filePath);
+            long fileSize = new FileInfo(filePath).Length;
+
+            CurrentFileName = fileName;
+
+            byte[] fileNameBytes = Encoding.UTF8.GetBytes(fileName);
+            byte[] fileNameLengthBytes = BitConverter.GetBytes(fileNameBytes.Length);
+            byte[] fileSizeBytes = BitConverter.GetBytes(fileSize);
+
+            await stream.WriteAsync(fileNameLengthBytes);
+            await stream.WriteAsync(fileNameBytes);
+            await stream.WriteAsync(fileSizeBytes);
+
+            await using var fileStream = File.OpenRead(filePath);
+            byte[] buffer = new byte[BufferSize];
+            long sent = 0;
+            int bytesRead;
+
+            while ((bytesRead = await fileStream.ReadAsync(buffer)) > 0)
+            {
+                await stream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                sent += bytesRead;
+                sentTotal += bytesRead;
+
+                double fileProgress = (sent * 100.0) / fileSize;
+                double totalProgress = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);
+
+                Progress = totalProgress;
+                CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(sent)} / {FormatFileSize(fileSize)}";
+                Status = $"[{recipientIndex + 1}/{recipientCount}] Sending {fileName} to {recipientIp} ({fileProgress:F1}%)";
+            }
+
+            Status = $"[{recipientIndex + 1}/{recipientCount}] Sent {i + 1}/{totalFiles}: {fileName} to {recipientIp}";
+        }
+
+        byte[] endMarker = BitConverter.GetBytes((int)0);
+        await stream.WriteAsync(endMarker);
     }
 
     [RelayCommand]
@@ -676,38 +773,45 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task TestConnection()
     {
-        if (string.IsNullOrWhiteSpace(RecipientIp))
+        var recipients = GetRecipientTargets();
+        if (recipients.Count == 0)
         {
-            ConnectionTestResult = "Enter IP address";
+            ConnectionTestResult = "Enter one or more receiver IP addresses";
             return;
         }
 
-        if (!int.TryParse(Port, out int port))
+        if (!int.TryParse(Port, out int port) || port <= 0 || port > 65535)
         {
             ConnectionTestResult = "Invalid port";
             return;
         }
 
-        ConnectionTestResult = "Testing...";
+        ConnectionTestResult = "Testing receivers...";
 
-        try
+        var results = new List<string>();
+        foreach (var recipient in recipients)
         {
-            using var client = new TcpClient();
-            var connectTask = client.ConnectAsync(RecipientIp, port);
+            try
+            {
+                using var client = new TcpClient();
+                var connectTask = client.ConnectAsync(recipient, port);
 
-            if (await Task.WhenAny(connectTask, Task.Delay(3000)) == connectTask)
-            {
-                ConnectionTestResult = $"✓ Connected to {RecipientIp}:{port}";
+                if (await Task.WhenAny(connectTask, Task.Delay(3000)) == connectTask)
+                {
+                    results.Add($"OK - connected to {recipient}:{port}");
+                }
+                else
+                {
+                    results.Add($"Timeout - port not open on {recipient}:{port}");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                ConnectionTestResult = $"✗ Timeout - port not open";
+                results.Add($"Failed - {recipient}:{port}: {ex.Message}");
             }
         }
-        catch (Exception ex)
-        {
-            ConnectionTestResult = $"✗ {ex.Message}";
-        }
+
+        ConnectionTestResult = string.Join(Environment.NewLine, results);
     }
 
     [RelayCommand]

@@ -41,6 +41,7 @@ bld/
 
 # Build artifacts
 publish/
+dist/
 *.app
 *.appbundle
 

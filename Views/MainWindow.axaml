@@ -562,18 +562,27 @@
             <Border Grid.Row="2" Classes="Card">
               <Grid RowDefinitions="Auto,Auto" RowSpacing="12">
                 <!-- Header row: icon+label in col 0, select button in col 1, clear button in col 2 -->
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
                   <PathIcon Data="{StaticResource IconFolder}" VerticalAlignment="Center"/>
                   <TextBlock Grid.Column="1" Text="Files" Classes="Heading" VerticalAlignment="Center"/>
                   <Button Grid.Column="2" Command="{Binding SelectFilesCommand}"
                           CommandParameter="{Binding $parent[Window]}" Classes="Secondary SmallButton" VerticalAlignment="Center"
                           ToolTip.Tip="Add files to send">
                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                      <PathIcon Data="{StaticResource IconFolder}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      <PathIcon Data="{StaticResource IconFile}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                       <TextBlock Text="Add Files" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
-                  <Button Grid.Column="3" Command="{Binding ClearFilesCommand}"
+
+                  <Button Grid.Column="3" Command="{Binding SelectFolderCommand}"
+                          CommandParameter="{Binding $parent[Window]}" Classes="Secondary SmallButton" VerticalAlignment="Center"
+                          ToolTip.Tip="Add folder to send">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                      <PathIcon Data="{StaticResource IconFolder}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      <TextBlock Text="Add Folder" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                  <Button Grid.Column="4" Command="{Binding ClearFilesCommand}"
                           Classes="Ghost SmallButton" VerticalAlignment="Center" ToolTip.Tip="Clear selected files">
                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
                       <PathIcon Data="{StaticResource IconDelete}" HorizontalAlignment="Center" VerticalAlignment="Center"/>

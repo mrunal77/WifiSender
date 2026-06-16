@@ -58,7 +58,21 @@ public partial class MainWindow : Window
             {
                 if (file.TryGetLocalPath() is { } localPath)
                 {
-                    vm.SelectedFiles.Add(localPath);
+                    // If it's a directory, expand it recursively
+                    if (System.IO.Directory.Exists(localPath))
+                    {
+                        try
+                        {
+                            var allFiles = System.IO.Directory.GetFiles(localPath, "*", System.IO.SearchOption.AllDirectories);
+                            foreach (var f in allFiles)
+                                vm.SelectedFiles.Add(f);
+                        }
+                        catch { }
+                    }
+                    else if (System.IO.File.Exists(localPath))
+                    {
+                        vm.SelectedFiles.Add(localPath);
+                    }
                 }
             }
 

@@ -276,6 +276,47 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private async Task SelectFolder(Window? window)
+    {
+        if (window == null) return;
+
+        var folders = await window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Select Folder to Send",
+            AllowMultiple = false
+        });
+
+        if (folders.Count == 0) return;
+
+        var folderPath = folders[0].Path.LocalPath;
+        string[] files;
+        try
+        {
+            files = Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories);
+        }
+        catch
+        {
+            files = Array.Empty<string>();
+        }
+
+        SelectedFiles.Clear();
+        foreach (var f in files)
+            SelectedFiles.Add(f);
+
+        if (SelectedFiles.Count > 0)
+        {
+            long totalSize = 0;
+            foreach (var f in SelectedFiles)
+            {
+                if (File.Exists(f))
+                    totalSize += new FileInfo(f).Length;
+            }
+            Status = $"Selected {SelectedFiles.Count} file(s) from folder '{Path.GetFileName(folderPath)}' ({FormatFileSize(totalSize)})";
+            SendFilesCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    [RelayCommand]
     private async Task SelectDownloadFolder(Window? window)
     {
         if (window == null) return;

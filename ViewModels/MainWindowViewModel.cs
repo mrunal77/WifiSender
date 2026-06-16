@@ -648,7 +648,7 @@ public partial class MainWindowViewModel : ObservableObject
             while (!_cts.Token.IsCancellationRequested)
             {
                 var client = await _server.AcceptTcpClientAsync(_cts.Token);
-                _ = HandleClientAsync(client);
+                _ = HandleClientAsync(client, _cts.Token);
             }
         }
         catch (OperationCanceledException)
@@ -700,7 +700,7 @@ public partial class MainWindowViewModel : ObservableObject
         catch { }
     }
 
-    private async Task HandleClientAsync(TcpClient client)
+    private async Task HandleClientAsync(TcpClient client, CancellationToken ct)
     {
         try
         {
@@ -719,7 +719,7 @@ public partial class MainWindowViewModel : ObservableObject
             while (true)
             {
                 byte[] lengthBuffer = new byte[4];
-                int read = await ReadExactAsync(stream, lengthBuffer);
+                int read = await ReadExactAsync(stream, lengthBuffer, ct);
                 if (read == 0) break;
 
                 int fileNameLength = BitConverter.ToInt32(lengthBuffer, 0);
@@ -728,11 +728,11 @@ public partial class MainWindowViewModel : ObservableObject
                     break;
 
                 byte[] fileNameBuffer = new byte[fileNameLength];
-                await ReadExactAsync(stream, fileNameBuffer);
+                await ReadExactAsync(stream, fileNameBuffer, ct);
                 string fileName = Encoding.UTF8.GetString(fileNameBuffer);
 
                 byte[] sizeBuffer = new byte[8];
-                await ReadExactAsync(stream, sizeBuffer);
+                await ReadExactAsync(stream, sizeBuffer, ct);
                 long fileSize = BitConverter.ToInt64(sizeBuffer, 0);
 
                 CurrentFileName = fileName;
@@ -791,6 +791,13 @@ public partial class MainWindowViewModel : ObservableObject
                 CurrentFileProgress = "";
             });
         }
+        catch (OperationCanceledException)
+        {
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                Status = "Receive cancelled";
+            });
+        }
         catch (Exception ex)
         {
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
@@ -804,12 +811,12 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    private async Task<int> ReadExactAsync(NetworkStream stream, byte[] buffer)
+    private async Task<int> ReadExactAsync(NetworkStream stream, byte[] buffer, CancellationToken ct = default)
     {
         int totalRead = 0;
         while (totalRead < buffer.Length)
         {
-            int read = await stream.ReadAsync(buffer.AsMemory(totalRead, buffer.Length - totalRead));
+            int read = await stream.ReadAsync(buffer.AsMemory(totalRead, buffer.Length - totalRead), ct);
             if (read == 0) return totalRead;
             totalRead += read;
         }

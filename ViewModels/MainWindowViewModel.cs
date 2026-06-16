@@ -170,12 +170,32 @@ public partial class MainWindowViewModel : ObservableObject
             using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0);
             socket.Connect("8.8.8.8", 65530);
             var endPoint = socket.LocalEndPoint as IPEndPoint;
-            return endPoint?.Address.ToString() ?? "127.0.0.1";
+            var ip = endPoint?.Address.ToString();
+            if (!string.IsNullOrEmpty(ip) && !ip.StartsWith("127."))
+                return ip;
         }
         catch
         {
-            return "127.0.0.1";
         }
+
+        foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces())
+        {
+            if (networkInterface.OperationalStatus != OperationalStatus.Up)
+                continue;
+            if (networkInterface.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+                continue;
+
+            foreach (var unicastAddress in networkInterface.GetIPProperties().UnicastAddresses)
+            {
+                if (unicastAddress.Address.AddressFamily == AddressFamily.InterNetwork &&
+                    !IPAddress.IsLoopback(unicastAddress.Address))
+                {
+                    return unicastAddress.Address.ToString();
+                }
+            }
+        }
+
+        return "0.0.0.0";
     }
 
     private string GetNetworkPrefix()
@@ -230,7 +250,9 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         if (broadcasts.Count == 0)
-            broadcasts.Add($"{GetNetworkPrefix()}.255");
+        {
+            broadcasts.Add("255.255.255.255");
+        }
 
         return broadcasts;
     }

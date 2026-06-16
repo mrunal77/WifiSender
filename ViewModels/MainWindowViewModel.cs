@@ -882,18 +882,22 @@ public partial class MainWindowViewModel : ObservableObject
     {
         try
         {
+            var exe = GetExecutablePath(fileName);
+            if (exe == null)
+                return "";
+
             using var proc = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = fileName,
+                    FileName = exe,
                     Arguments = args,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false
                 }
             };
-            proc.Start();
+            try { proc.Start(); } catch { return ""; }
             string output = await proc.StandardOutput.ReadToEndAsync();
             await proc.StandardError.ReadToEndAsync();
             await proc.WaitForExitAsync();
@@ -960,16 +964,20 @@ public partial class MainWindowViewModel : ObservableObject
     {
         try
         {
+            var exe = GetExecutablePath(tool);
+            if (exe == null)
+                return false;
+
             using var proc = new Process
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = tool,
+                    FileName = exe,
                     Arguments = arguments,
                     UseShellExecute = true
                 }
             };
-            proc.Start();
+            try { proc.Start(); } catch { return false; }
             await proc.WaitForExitAsync();
             return proc.ExitCode == 0;
         }
@@ -977,6 +985,34 @@ public partial class MainWindowViewModel : ObservableObject
         {
             return false;
         }
+    }
+
+    private static string? GetExecutablePath(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return null;
+
+        // If a path was provided, return it if the file exists
+        if (name.IndexOf(Path.DirectorySeparatorChar) >= 0 || name.IndexOf(Path.AltDirectorySeparatorChar) >= 0)
+            return File.Exists(name) ? name : null;
+
+        var pathEnv = Environment.GetEnvironmentVariable("PATH");
+        if (string.IsNullOrEmpty(pathEnv))
+            return null;
+
+        var parts = pathEnv.Split(Path.PathSeparator);
+        foreach (var p in parts)
+        {
+            try
+            {
+                var candidate = Path.Combine(p, name);
+                if (File.Exists(candidate))
+                    return candidate;
+            }
+            catch { }
+        }
+
+        return null;
     }
 
     public static string FormatFileSize(long bytes)

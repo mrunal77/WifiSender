@@ -183,8 +183,12 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             string ip = LocalIp;
+            if (string.IsNullOrEmpty(ip) || ip.StartsWith("127.") || ip.StartsWith("0."))
+                return "192.168.1";
             var parts = ip.Split('.');
-            return $"{parts[0]}.{parts[1]}.{parts[2]}";
+            if (parts.Length >= 3)
+                return $"{parts[0]}.{parts[1]}.{parts[2]}";
+            return "192.168.1";
         }
         catch
         {
@@ -207,6 +211,9 @@ public partial class MainWindowViewModel : ObservableObject
             foreach (var unicastAddress in networkInterface.GetIPProperties().UnicastAddresses)
             {
                 if (unicastAddress.Address.AddressFamily != AddressFamily.InterNetwork)
+                    continue;
+
+                if (unicastAddress.IPv4Mask == null)
                     continue;
 
                 var ipBytes = unicastAddress.Address.GetAddressBytes();

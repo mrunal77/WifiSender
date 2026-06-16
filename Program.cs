@@ -13,7 +13,7 @@ sealed class Program
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
             // Disable DBus IME to avoid disposal errors from IBus not implementing Destroy method
-            Environment.SetEnvironmentVariable("AVALONIA_IME_MODE", "None");
+            Environment.SetEnvironmentVariable("AVALONIA_IM_MODULE", "none");
             
             // Some X11/libICE libraries warn when SESSION_MANAGER is not defined.
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SESSION_MANAGER")))

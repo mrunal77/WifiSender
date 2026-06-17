@@ -16,8 +16,9 @@ sealed class Program
             Environment.SetEnvironmentVariable("AVALONIA_IM_MODULE", "none");
             
             // Some X11/libICE libraries warn when SESSION_MANAGER is not defined.
+            // Setting a small non-empty placeholder suppresses the warning from native libraries.
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SESSION_MANAGER")))
-                Environment.SetEnvironmentVariable("SESSION_MANAGER", string.Empty);
+                Environment.SetEnvironmentVariable("SESSION_MANAGER", "local");
         }
 
         BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);

@@ -257,6 +257,50 @@ public partial class MainWindowViewModel : ObservableObject
         return broadcasts;
     }
 
+    private static bool TryParseDeviceMessage(string message, out DiscoveredDevice? device)
+    {
+        device = null;
+        if (!message.StartsWith("WIFISENDER_RESPONSE|") && !message.StartsWith("WIFISENDER_ANNOUNCE|"))
+            return false;
+
+        var parts = message.Split('|');
+        if (parts.Length < 3)
+            return false;
+
+        device = new DiscoveredDevice
+        {
+            IpAddress = parts[1],
+            Port = parts[2],
+            DeviceName = parts.Length > 3 ? parts[3] : ""
+        };
+        return true;
+    }
+
+    private async Task BroadcastPresenceAsync(UdpClient udp, int filePort, CancellationToken token)
+    {
+        string hostName = Environment.MachineName;
+        string announce = $"WIFISENDER_ANNOUNCE|{LocalIp}|{filePort}|{hostName}";
+        byte[] data = Encoding.UTF8.GetBytes(announce);
+
+        foreach (var broadcastIp in GetBroadcastAddresses())
+        {
+            if (token.IsCancellationRequested)
+                return;
+
+            try
+            {
+                await udp.SendAsync(data, data.Length, new IPEndPoint(IPAddress.Parse(broadcastIp), DiscoveryPort));
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (SocketException)
+            {
+            }
+        }
+    }
+
     private IReadOnlyList<string> GetRecipientTargets()
     {
         return GetRecipientTargets(RecipientIps);
@@ -408,27 +452,16 @@ public partial class MainWindowViewModel : ObservableObject
                     var result = await _udpScanner.ReceiveAsync(linkedCts.Token);
                     string response = Encoding.UTF8.GetString(result.Buffer);
 
-                    if (response.StartsWith("WIFISENDER_RESPONSE|"))
+                    if (TryParseDeviceMessage(response, out var device) && device != null)
                     {
-                        var parts = response.Split('|');
-                        if (parts.Length >= 3)
+                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                         {
-                            var device = new DiscoveredDevice
+                            if (!DiscoveredDevices.Any(d => d.IpAddress == device.IpAddress && d.Port == device.Port))
                             {
-                                IpAddress = parts[1],
-                                Port = parts[2],
-                                DeviceName = parts.Length > 3 ? parts[3] : ""
-                            };
-
-                            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                            {
-                                if (!DiscoveredDevices.Any(d => d.IpAddress == device.IpAddress && d.Port == device.Port))
-                                {
-                                    DiscoveredDevices.Add(device);
-                                    Status = $"Found {DiscoveredDevices.Count} device(s)";
-                                }
-                            });
-                        }
+                                DiscoveredDevices.Add(device);
+                                Status = $"Found {DiscoveredDevices.Count} device(s)";
+                            }
+                        });
                     }
                 }
                 catch (OperationCanceledException) when (_scanCts.Token.IsCancellationRequested)
@@ -636,13 +669,13 @@ public partial class MainWindowViewModel : ObservableObject
             return;
         }
 
+        LocalIp = GetLocalIpAddress();
         IsReceiving = true;
-        Status = $"Listening on port {port}...";
+        Status = $"Listening on {LocalIp}:{port} (broadcasting to network)...";
         Progress = 0;
         _cts = new CancellationTokenSource();
 
-        // Start discovery responder
-        _ = RespondToDiscoveryAsync(port);
+        _ = RunDiscoveryServiceAsync(port);
 
         try
         {
@@ -669,7 +702,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    private async Task RespondToDiscoveryAsync(int filePort)
+    private async Task RunDiscoveryServiceAsync(int filePort)
     {
         try
         {
@@ -679,12 +712,26 @@ public partial class MainWindowViewModel : ObservableObject
             udpServer.EnableBroadcast = true;
 
             string hostName = Environment.MachineName;
+            var token = _cts!.Token;
+            var lastAnnounce = DateTime.MinValue;
 
-            while (_cts is { Token: { IsCancellationRequested: false } })
+            await BroadcastPresenceAsync(udpServer, filePort, token);
+            lastAnnounce = DateTime.UtcNow;
+
+            while (!token.IsCancellationRequested)
             {
+                if ((DateTime.UtcNow - lastAnnounce).TotalSeconds >= 2)
+                {
+                    await BroadcastPresenceAsync(udpServer, filePort, token);
+                    lastAnnounce = DateTime.UtcNow;
+                }
+
                 try
                 {
-                    var result = await udpServer.ReceiveAsync(_cts.Token);
+                    using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
+
+                    var result = await udpServer.ReceiveAsync(linkedCts.Token);
                     string message = Encoding.UTF8.GetString(result.Buffer);
 
                     if (message.StartsWith("WIFISENDER_DISCOVERY"))
@@ -694,31 +741,37 @@ public partial class MainWindowViewModel : ObservableObject
                         await udpServer.SendAsync(responseBytes, responseBytes.Length, result.RemoteEndPoint);
                     }
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
                 {
                     break;
+                }
+                catch (OperationCanceledException)
+                {
                 }
                 catch (SocketException ex)
                 {
                     await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        Status = $"Socket error in discovery responder: {ex.Message}";
+                        Status = $"Socket error in discovery service: {ex.Message}";
                     });
                 }
                 catch (Exception ex)
                 {
                     await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        Status = $"Discovery responder error: {ex.Message}";
+                        Status = $"Discovery service error: {ex.Message}";
                     });
                 }
             }
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch (Exception ex)
         {
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
-                Status = $"Discovery responder failed: {ex.Message}";
+                Status = $"Discovery service failed: {ex.Message}";
             });
         }
     }

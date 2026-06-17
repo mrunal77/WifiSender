@@ -438,8 +438,12 @@ public partial class MainWindowViewModel : ObservableObject
                 catch (OperationCanceledException)
                 {
                 }
-                catch (SocketException)
+                catch (SocketException ex)
                 {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        Status = $"Socket error while scanning: {ex.Message}";
+                    });
                 }
             }
 
@@ -694,10 +698,29 @@ public partial class MainWindowViewModel : ObservableObject
                 {
                     break;
                 }
-                catch { }
+                catch (SocketException ex)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        Status = $"Socket error in discovery responder: {ex.Message}";
+                    });
+                }
+                catch (Exception ex)
+                {
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        Status = $"Discovery responder error: {ex.Message}";
+                    });
+                }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                Status = $"Discovery responder failed: {ex.Message}";
+            });
+        }
     }
 
     private async Task HandleClientAsync(TcpClient client, CancellationToken ct)

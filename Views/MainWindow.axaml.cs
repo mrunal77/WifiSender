@@ -17,6 +17,29 @@ public partial class MainWindow : Window
         AddHandler(DragDrop.DropEvent, OnDrop);
 
         KeyDown += OnKeyDown;
+
+        SendScrollViewer.ScrollChanged += OnScrollChanged;
+        ReceiveScrollViewer.ScrollChanged += OnScrollChanged;
+        MainTabControl.SelectionChanged += OnTabSelectionChanged;
+    }
+
+    private void OnScrollChanged(object? sender, ScrollChangedEventArgs e)
+    {
+        UpdateNavBarScrollState();
+    }
+
+    private void OnTabSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        UpdateNavBarScrollState();
+    }
+
+    private void UpdateNavBarScrollState()
+    {
+        if (DataContext is MainWindowViewModel vm)
+        {
+            var sv = MainTabControl.SelectedIndex == 0 ? SendScrollViewer : ReceiveScrollViewer;
+            vm.IsNavBarScrolled = sv.Offset.Y > 0;
+        }
     }
 
     private void OnKeyDown(object? sender, KeyEventArgs e)

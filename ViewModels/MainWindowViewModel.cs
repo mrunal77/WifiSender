@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -119,10 +120,31 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ThemeIcon))]
+    [NotifyPropertyChangedFor(nameof(NavBarBackground))]
     private bool _isDarkTheme = true;
 
     [ObservableProperty]
     private double _contentOpacity = 1;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NavBarBackground))]
+    private bool _isNavBarScrolled;
+
+    private static readonly IBrush LightNavBarCream = new SolidColorBrush(Color.Parse("#FFF8E7"));
+    private static readonly IBrush LightNavBarBluish = new SolidColorBrush(Color.Parse("#B08B5CF6"));
+    private static readonly IBrush DarkNavBarGradient = new LinearGradientBrush
+    {
+        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+        EndPoint = new RelativePoint(1, 0, RelativeUnit.Relative),
+        GradientStops = new GradientStops
+        {
+            new GradientStop(Color.Parse("#2563EB"), 0),
+            new GradientStop(Color.Parse("#7C3AED"), 0.55),
+            new GradientStop(Color.Parse("#0EA5E9"), 1)
+        }
+    };
+
+    public IBrush NavBarBackground => IsDarkTheme ? DarkNavBarGradient : (IsNavBarScrolled ? LightNavBarBluish : LightNavBarCream);
 
     public string ThemeIcon => IsDarkTheme ? "🌙" : "☀️";
 

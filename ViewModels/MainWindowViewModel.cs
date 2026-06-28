@@ -586,48 +586,8 @@ public partial class MainWindowViewModel : ObservableObject
 
         try
         {
-            var parallelOptions = new ParallelOptions
-            {
-                CancellationToken = sendToken,
-                MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount)
-            };
-
-            int completedCount = 0;
-            await Parallel.ForEachAsync(recipients, parallelOptions, async (recipient, ct) =>
-            {
-                int idx = Interlocked.Increment(ref completedCount) - 1;
-                ct.ThrowIfCancellationRequested();
-
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    Progress = (idx * 100.0) / recipients.Count;
-                    Status = $"[{idx + 1}/{recipients.Count}] Connecting to {recipient}:{port}...";
-                });
-
-                try
-                {
-                    await SendFilesToRecipientAsync(recipient, port, idx, recipients.Count, ct);
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        Status = $"[{idx + 1}/{recipients.Count}] Sent to {recipient}";
-                    });
-                }
-                catch (OperationCanceledException)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        Status = $"Cancelled sending to {recipient}";
-                    });
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        Status = $"[{idx + 1}/{recipients.Count}] Failed to send to {recipient}: {ex.Message}";
-                    });
-                }
-            });
+            var sendTasks = recipients.Select((recipient, idx) => SendToRecipientAsync(recipient, port, idx, recipients.Count, sendToken));
+            await Task.WhenAll(sendTasks);
 
             Status = "Finished sending to all receivers";
             Progress = 100;
@@ -666,6 +626,25 @@ public partial class MainWindowViewModel : ObservableObject
             }
         }
         return Path.GetFileName(filePath);
+    }
+
+    private async Task SendToRecipientAsync(string recipientIp, int port, int recipientIndex, int recipientCount, CancellationToken ct)
+    {
+        try
+        {
+            Status = $"[{recipientIndex + 1}/{recipientCount}] Connecting to {recipientIp}:{port}...";
+            await SendFilesToRecipientAsync(recipientIp, port, recipientIndex, recipientCount, ct);
+            Status = $"[{recipientIndex + 1}/{recipientCount}] Sent to {recipientIp}";
+        }
+        catch (OperationCanceledException)
+        {
+            Status = $"Cancelled sending to {recipientIp}";
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Status = $"[{recipientIndex + 1}/{recipientCount}] Failed to send to {recipientIp}: {ex.Message}";
+        }
     }
 
     private async Task SendFilesToRecipientAsync(string recipientIp, int port, int recipientIndex, int recipientCount, CancellationToken ct = default)
@@ -715,74 +694,32 @@ public partial class MainWindowViewModel : ObservableObject
             CurrentFileName = fileName;
 
             byte[] fileNameBytes = Encoding.UTF8.GetBytes(fileName);
-            byte[] fileNameLengthBytes = BitConverter.GetBytes(fileNameBytes.Length);
             byte[] fileSizeBytes = BitConverter.GetBytes(fileSize);
+            byte[] header = new byte[4 + fileNameBytes.Length + 8 + 1 + 8];
+            BitConverter.GetBytes(fileNameBytes.Length).CopyTo(header, 0);
+            fileNameBytes.CopyTo(header, 4);
+            fileSizeBytes.CopyTo(header, 4 + fileNameBytes.Length);
+            header[4 + fileNameBytes.Length + 8] = 0; // not compressed
+            fileSizeBytes.CopyTo(header, 4 + fileNameBytes.Length + 8 + 1); // wireSize = fileSize
 
-            // Compress file data with Deflate (fastest algorithm)
-            string ext = Path.GetExtension(filePath);
-            bool shouldCompress = fileSize >= MinCompressSize && !UncompressibleExtensions.Contains(ext);
+            await stream.WriteAsync(header, ct);
 
-            byte[]? compressedData = null;
-
-            if (shouldCompress)
+            await using var fileStream = File.OpenRead(filePath);
+            byte[] buffer = new byte[BufferSize];
+            int bytesRead;
+            long readSoFar = 0;
+            while ((bytesRead = await fileStream.ReadAsync(buffer)) > 0)
             {
-                using (var ms = new MemoryStream())
-                {
-                    await using (var fileStream = File.OpenRead(filePath))
-                    await using (var deflate = new DeflateStream(ms, CompressionLevel.Fastest))
-                    {
-                        byte[] buffer = new byte[BufferSize];
-                        int bytesRead;
-                        long readSoFar = 0;
-                        while ((bytesRead = await fileStream.ReadAsync(buffer)) > 0)
-                        {
-                            ct.ThrowIfCancellationRequested();
-                            await deflate.WriteAsync(buffer.AsMemory(0, bytesRead));
-                            readSoFar += bytesRead;
-                            sentTotal += bytesRead;
+                ct.ThrowIfCancellationRequested();
+                await stream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+                readSoFar += bytesRead;
+                sentTotal += bytesRead;
 
-                            double fileProgress = (readSoFar * 100.0) / fileSize;
-                            double totalProgress = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);
-                            Progress = totalProgress;
-                            CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(readSoFar)} / {FormatFileSize(fileSize)}";
-                            Status = $"[{recipientIndex + 1}/{recipientCount}] Compressing {fileName} ({fileProgress:F1}%)";
-                        }
-                    }
-                    compressedData = ms.ToArray();
-                }
-            }
-
-            bool useCompression = compressedData != null && compressedData.Length < fileSize;
-            long wireSize = useCompression ? compressedData!.Length : fileSize;
-
-            byte[] compressionFlagBytes = { (byte)(useCompression ? 1 : 0) };
-            byte[] wireSizeBytes = BitConverter.GetBytes(wireSize);
-
-            await stream.WriteAsync(fileNameLengthBytes.Concat(fileNameBytes).Concat(fileSizeBytes).Concat(compressionFlagBytes).Concat(wireSizeBytes).ToArray(), ct);
-
-            if (useCompression)
-            {
-                await stream.WriteAsync(compressedData, ct);
-            }
-            else
-            {
-                await using var fileStream = File.OpenRead(filePath);
-                byte[] buffer = new byte[BufferSize];
-                int bytesRead;
-                long readSoFar = 0;
-                while ((bytesRead = await fileStream.ReadAsync(buffer)) > 0)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    await stream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
-                    readSoFar += bytesRead;
-                    sentTotal += bytesRead;
-
-                    double fileProgress = (readSoFar * 100.0) / fileSize;
-                    double totalProgress = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);
-                    Progress = totalProgress;
-                    CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(readSoFar)} / {FormatFileSize(fileSize)}";
-                    Status = $"[{recipientIndex + 1}/{recipientCount}] Sending {fileName} ({fileProgress:F1}%)";
-                }
+                double fileProgress = (readSoFar * 100.0) / fileSize;
+                double totalProgress = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);
+                Progress = totalProgress;
+                CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(readSoFar)} / {FormatFileSize(fileSize)}";
+                Status = $"[{recipientIndex + 1}/{recipientCount}] Sending {fileName} ({fileProgress:F1}%)";
             }
 
             double totalProgressDone = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);

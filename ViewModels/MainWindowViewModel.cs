@@ -34,6 +34,7 @@ public partial class MainWindowViewModel : ObservableObject
 {
     private TcpListener? _server;
     private CancellationTokenSource? _cts;
+    private CancellationTokenSource? _sendCts;
     private UdpClient? _udpScanner;
     private CancellationTokenSource? _scanCts;
     private const int BufferSize = 262144;
@@ -580,19 +581,28 @@ public partial class MainWindowViewModel : ObservableObject
         Progress = 0;
         CurrentFileName = "";
         CurrentFileProgress = "";
+        _sendCts = new CancellationTokenSource();
+        var sendToken = _sendCts.Token;
 
         try
         {
             for (int i = 0; i < recipients.Count; i++)
             {
+                sendToken.ThrowIfCancellationRequested();
+
                 var recipient = recipients[i];
                 Progress = (i * 100.0) / recipients.Count;
                 Status = $"[{i + 1}/{recipients.Count}] Connecting to {recipient}:{port}...";
 
                 try
                 {
-                    await SendFilesToRecipientAsync(recipient, port, i, recipients.Count);
+                    await SendFilesToRecipientAsync(recipient, port, i, recipients.Count, sendToken);
                     Status = $"[{i + 1}/{recipients.Count}] Sent to {recipient}";
+                }
+                catch (OperationCanceledException)
+                {
+                    Status = $"Cancelled sending to {recipient}";
+                    throw;
                 }
                 catch (Exception ex)
                 {
@@ -605,10 +615,23 @@ public partial class MainWindowViewModel : ObservableObject
             CurrentFileName = "";
             CurrentFileProgress = "";
         }
+        catch (OperationCanceledException)
+        {
+            Status = "Sending cancelled";
+        }
         finally
         {
             IsSending = false;
+            _sendCts?.Dispose();
+            _sendCts = null;
         }
+    }
+
+    [RelayCommand]
+    private void StopSending()
+    {
+        _sendCts?.Cancel();
+        Status = "Stopping send...";
     }
 
     private string GetSendFileName(string filePath)
@@ -626,12 +649,14 @@ public partial class MainWindowViewModel : ObservableObject
         return Path.GetFileName(filePath);
     }
 
-    private async Task SendFilesToRecipientAsync(string recipientIp, int port, int recipientIndex, int recipientCount)
+    private async Task SendFilesToRecipientAsync(string recipientIp, int port, int recipientIndex, int recipientCount, CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
+
         using var client = new TcpClient();
         client.SendBufferSize = BufferSize;
         client.ReceiveBufferSize = BufferSize;
-        await client.ConnectAsync(recipientIp, port);
+        await client.ConnectAsync(recipientIp, port, ct);
 
         await using var stream = client.GetStream();
 
@@ -662,6 +687,8 @@ public partial class MainWindowViewModel : ObservableObject
                 continue;
             }
 
+            ct.ThrowIfCancellationRequested();
+
             string fileName = GetSendFileName(filePath);
             long fileSize = new FileInfo(filePath).Length;
 
@@ -671,9 +698,9 @@ public partial class MainWindowViewModel : ObservableObject
             byte[] fileNameLengthBytes = BitConverter.GetBytes(fileNameBytes.Length);
             byte[] fileSizeBytes = BitConverter.GetBytes(fileSize);
 
-            await stream.WriteAsync(fileNameLengthBytes);
-            await stream.WriteAsync(fileNameBytes);
-            await stream.WriteAsync(fileSizeBytes);
+            await stream.WriteAsync(fileNameLengthBytes, ct);
+            await stream.WriteAsync(fileNameBytes, ct);
+            await stream.WriteAsync(fileSizeBytes, ct);
 
             // Compress file data with Deflate (fastest algorithm)
             string ext = Path.GetExtension(filePath);
@@ -694,12 +721,12 @@ public partial class MainWindowViewModel : ObservableObject
             bool useCompression = compressedData != null && compressedData.Length < fileSize;
             long wireSize = useCompression ? compressedData!.Length : fileSize;
 
-            await stream.WriteAsync(new[] { (byte)(useCompression ? 1 : 0) });
-            await stream.WriteAsync(BitConverter.GetBytes(wireSize));
+            await stream.WriteAsync(new[] { (byte)(useCompression ? 1 : 0) }, ct);
+            await stream.WriteAsync(BitConverter.GetBytes(wireSize), ct);
 
             if (useCompression)
             {
-                await stream.WriteAsync(compressedData);
+                await stream.WriteAsync(compressedData, ct);
                 sentTotal += fileSize;
             }
             else
@@ -709,7 +736,8 @@ public partial class MainWindowViewModel : ObservableObject
                 int bytesRead;
                 while ((bytesRead = await fileStream.ReadAsync(buffer)) > 0)
                 {
-                    await stream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                    ct.ThrowIfCancellationRequested();
+                    await stream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
                     sentTotal += bytesRead;
                 }
             }
@@ -721,7 +749,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         byte[] endMarker = BitConverter.GetBytes((int)0);
-        await stream.WriteAsync(endMarker);
+        await stream.WriteAsync(endMarker, ct);
     }
 
     [RelayCommand]
@@ -925,9 +953,9 @@ public partial class MainWindowViewModel : ObservableObject
                     byte[] buffer = new byte[BufferSize];
                     int bytesRead;
                     long received = 0;
-                    while ((bytesRead = await deflate.ReadAsync(buffer)) > 0)
+                    while ((bytesRead = await deflate.ReadAsync(buffer, ct)) > 0)
                     {
-                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
                         received += bytesRead;
                         totalReceived += bytesRead;
 
@@ -948,11 +976,12 @@ public partial class MainWindowViewModel : ObservableObject
                     long received = 0;
                     while (remaining > 0)
                     {
+                        ct.ThrowIfCancellationRequested();
                         int toRead = (int)Math.Min(buffer.Length, remaining);
-                        int bytesRead = await stream.ReadAsync(buffer.AsMemory(0, toRead));
+                        int bytesRead = await stream.ReadAsync(buffer.AsMemory(0, toRead), ct);
                         if (bytesRead == 0) break;
 
-                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
                         received += bytesRead;
                         totalReceived += bytesRead;
                         remaining -= bytesRead;

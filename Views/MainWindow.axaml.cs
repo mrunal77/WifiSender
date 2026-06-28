@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -21,6 +22,22 @@ public partial class MainWindow : Window
         SendScrollViewer.ScrollChanged += OnScrollChanged;
         ReceiveScrollViewer.ScrollChanged += OnScrollChanged;
         MainTabControl.SelectionChanged += OnTabSelectionChanged;
+
+        DataContextChanged += OnDataContextChanged;
+    }
+
+    private void OnDataContextChanged(object? sender, EventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm)
+        {
+            vm.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(vm.IsSending) && vm.IsSending)
+                {
+                    SendScrollViewer.ScrollToEnd();
+                }
+            };
+        }
     }
 
     private void OnScrollChanged(object? sender, ScrollChangedEventArgs e)

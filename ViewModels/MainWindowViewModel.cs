@@ -37,6 +37,7 @@ public partial class MainWindowViewModel : ObservableObject
     private CancellationTokenSource? _scanCts;
     private const int BufferSize = 262144;
     private const int DiscoveryPort = 5556;
+    public string? SelectedFolderRoot { get; set; }
     private readonly FolderPickerOpenOptions _folderPickerOptions = new()
     {
         Title = "Select Download Folder",
@@ -353,6 +354,7 @@ public partial class MainWindowViewModel : ObservableObject
         });
 
         SelectedFiles.Clear();
+        SelectedFolderRoot = null;
         foreach (var file in files)
         {
             SelectedFiles.Add(file.Path.LocalPath);
@@ -395,6 +397,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         SelectedFiles.Clear();
+        SelectedFolderRoot = folderPath;
         foreach (var f in files)
             SelectedFiles.Add(f);
 
@@ -599,6 +602,18 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    private string GetSendFileName(string filePath)
+    {
+        if (SelectedFolderRoot != null && filePath.StartsWith(SelectedFolderRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            var relative = filePath.Substring(SelectedFolderRoot.Length)
+                .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (relative.Length > 0)
+                return relative;
+        }
+        return Path.GetFileName(filePath);
+    }
+
     private async Task SendFilesToRecipientAsync(string recipientIp, int port, int recipientIndex, int recipientCount)
     {
         using var client = new TcpClient();
@@ -635,7 +650,7 @@ public partial class MainWindowViewModel : ObservableObject
                 continue;
             }
 
-            string fileName = Path.GetFileName(filePath);
+            string fileName = GetSendFileName(filePath);
             long fileSize = new FileInfo(filePath).Length;
 
             CurrentFileName = fileName;
@@ -836,13 +851,18 @@ public partial class MainWindowViewModel : ObservableObject
                 CurrentFileName = fileName;
 
                 string savePath = Path.Combine(DownloadFolder, fileName);
+                string? saveDir = Path.GetDirectoryName(savePath);
+                if (!string.IsNullOrEmpty(saveDir) && !Directory.Exists(saveDir))
+                    Directory.CreateDirectory(saveDir);
+
                 string originalPath = savePath;
                 int counter = 1;
                 while (File.Exists(savePath))
                 {
                     string name = Path.GetFileNameWithoutExtension(originalPath);
                     string ext = Path.GetExtension(originalPath);
-                    savePath = Path.Combine(DownloadFolder, $"{name} ({counter}){ext}");
+                    string newName = $"{name} ({counter}){ext}";
+                    savePath = Path.Combine(saveDir ?? DownloadFolder, newName);
                     counter++;
                 }
 
@@ -993,6 +1013,7 @@ public partial class MainWindowViewModel : ObservableObject
     private void ClearFiles()
     {
         SelectedFiles.Clear();
+        SelectedFolderRoot = null;
         Status = "Files cleared";
     }
 

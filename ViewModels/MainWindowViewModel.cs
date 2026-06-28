@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -666,25 +667,42 @@ public partial class MainWindowViewModel : ObservableObject
             await stream.WriteAsync(fileNameBytes);
             await stream.WriteAsync(fileSizeBytes);
 
-            await using var fileStream = File.OpenRead(filePath);
-            byte[] buffer = new byte[BufferSize];
-            long sent = 0;
-            int bytesRead;
-
-            while ((bytesRead = await fileStream.ReadAsync(buffer)) > 0)
+            // Compress file data with Brotli
+            byte[] compressedData;
+            using (var ms = new MemoryStream())
             {
-                await stream.WriteAsync(buffer.AsMemory(0, bytesRead));
-                sent += bytesRead;
-                sentTotal += bytesRead;
-
-                double fileProgress = (sent * 100.0) / fileSize;
-                double totalProgress = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);
-
-                Progress = totalProgress;
-                CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(sent)} / {FormatFileSize(fileSize)}";
-                Status = $"[{recipientIndex + 1}/{recipientCount}] Sending {fileName} to {recipientIp} ({fileProgress:F1}%)";
+                await using (var fileStream = File.OpenRead(filePath))
+                await using (var brotli = new BrotliStream(ms, CompressionLevel.Fastest))
+                    await fileStream.CopyToAsync(brotli);
+                compressedData = ms.ToArray();
             }
 
+            bool useCompression = compressedData.Length < fileSize;
+            long wireSize = useCompression ? compressedData.Length : fileSize;
+
+            await stream.WriteAsync(new[] { (byte)(useCompression ? 1 : 0) });
+            await stream.WriteAsync(BitConverter.GetBytes(wireSize));
+
+            if (useCompression)
+            {
+                await stream.WriteAsync(compressedData);
+                sentTotal += fileSize;
+            }
+            else
+            {
+                await using var fileStream = File.OpenRead(filePath);
+                byte[] buffer = new byte[BufferSize];
+                int bytesRead;
+                while ((bytesRead = await fileStream.ReadAsync(buffer)) > 0)
+                {
+                    await stream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                    sentTotal += bytesRead;
+                }
+            }
+
+            double totalProgress = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);
+            Progress = totalProgress;
+            CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(fileSize)} / {FormatFileSize(fileSize)}";
             Status = $"[{recipientIndex + 1}/{recipientCount}] Sent {i + 1}/{totalFiles}: {fileName} to {recipientIp}";
         }
 
@@ -851,6 +869,14 @@ public partial class MainWindowViewModel : ObservableObject
                 await ReadExactAsync(stream, sizeBuffer, ct);
                 long fileSize = BitConverter.ToInt64(sizeBuffer, 0);
 
+                byte[] flagBuffer = new byte[1];
+                await ReadExactAsync(stream, flagBuffer, ct);
+                bool isCompressed = flagBuffer[0] == 1;
+
+                byte[] wireSizeBuffer = new byte[8];
+                await ReadExactAsync(stream, wireSizeBuffer, ct);
+                long wireSize = BitConverter.ToInt64(wireSizeBuffer, 0);
+
                 CurrentFileName = fileName;
 
                 string savePath = Path.Combine(DownloadFolder, fileName);
@@ -874,27 +900,57 @@ public partial class MainWindowViewModel : ObservableObject
                     Status = $"Receiving: {fileName} ({FormatFileSize(fileSize)})";
                 });
 
-                await using var fileStream = File.Create(savePath);
-                byte[] buffer = new byte[BufferSize];
-                long received = 0;
-
-                while (received < fileSize)
+                if (isCompressed)
                 {
-                    int toRead = (int)Math.Min(buffer.Length, fileSize - received);
-                    int bytesRead = await stream.ReadAsync(buffer.AsMemory(0, toRead));
-                    if (bytesRead == 0) break;
+                    byte[] compressedData = new byte[wireSize];
+                    await ReadExactAsync(stream, compressedData, ct);
 
-                    await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
-                    received += bytesRead;
-                    totalReceived += bytesRead;
-
-                    double fileProgress = (received * 100.0) / fileSize;
-                    CurrentFileProgress = $"{FormatFileSize(received)} / {FormatFileSize(fileSize)}";
-
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                    await using var fileStream = File.Create(savePath);
+                    using var ms = new MemoryStream(compressedData);
+                    await using var brotli = new BrotliStream(ms, CompressionMode.Decompress);
+                    byte[] buffer = new byte[BufferSize];
+                    int bytesRead;
+                    long received = 0;
+                    while ((bytesRead = await brotli.ReadAsync(buffer)) > 0)
                     {
-                        Progress = fileProgress;
-                    });
+                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                        received += bytesRead;
+                        totalReceived += bytesRead;
+
+                        double fileProgress = (received * 100.0) / fileSize;
+                        CurrentFileProgress = $"{FormatFileSize(received)} / {FormatFileSize(fileSize)}";
+
+                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                        {
+                            Progress = fileProgress;
+                        });
+                    }
+                }
+                else
+                {
+                    await using var fileStream = File.Create(savePath);
+                    byte[] buffer = new byte[BufferSize];
+                    long remaining = wireSize;
+                    long received = 0;
+                    while (remaining > 0)
+                    {
+                        int toRead = (int)Math.Min(buffer.Length, remaining);
+                        int bytesRead = await stream.ReadAsync(buffer.AsMemory(0, toRead));
+                        if (bytesRead == 0) break;
+
+                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                        received += bytesRead;
+                        totalReceived += bytesRead;
+                        remaining -= bytesRead;
+
+                        double fileProgress = (received * 100.0) / fileSize;
+                        CurrentFileProgress = $"{FormatFileSize(received)} / {FormatFileSize(fileSize)}";
+
+                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                        {
+                            Progress = fileProgress;
+                        });
+                    }
                 }
 
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>

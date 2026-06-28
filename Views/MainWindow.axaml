@@ -588,7 +588,7 @@
     <Border Opacity="{Binding ContentOpacity}" Padding="0" Background="Transparent">
       <Border.Transitions><Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.2"/></Transitions></Border.Transitions>
 
-    <TabControl x:Name="MainTabControl" SelectedIndex="{Binding SelectedTabIndex}" Margin="24,18,24,24">
+    <TabControl x:Name="MainTabControl" SelectedIndex="{Binding SelectedTabIndex}" Margin="24,18,0,24">
       <TabControl.Transitions><Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.15"/></Transitions></TabControl.Transitions>
 
       <!-- ═══════════ SEND TAB ═══════════ -->
@@ -600,7 +600,7 @@
           </StackPanel>
         </TabItem.Header>
         <ScrollViewer x:Name="SendScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-          <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="16" Margin="0,16,0,0"
+          <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="16" Margin="0,16,20,0"
                 VerticalAlignment="Top" MinHeight="400">
 
             <!-- ── Firewall Warning ── -->
@@ -795,7 +795,7 @@
           </StackPanel>
         </TabItem.Header>
         <ScrollViewer x:Name="ReceiveScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-          <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="16" Margin="0,16,0,0"
+          <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="16" Margin="0,16,20,0"
                 VerticalAlignment="Top" MinHeight="400">
 
             <!-- ── Connection Info Card ── -->

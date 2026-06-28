@@ -667,13 +667,13 @@ public partial class MainWindowViewModel : ObservableObject
             await stream.WriteAsync(fileNameBytes);
             await stream.WriteAsync(fileSizeBytes);
 
-            // Compress file data with Brotli
+            // Compress file data with Deflate (fastest algorithm)
             byte[] compressedData;
             using (var ms = new MemoryStream())
             {
                 await using (var fileStream = File.OpenRead(filePath))
-                await using (var brotli = new BrotliStream(ms, CompressionLevel.Fastest))
-                    await fileStream.CopyToAsync(brotli);
+                await using (var deflate = new DeflateStream(ms, CompressionLevel.Fastest))
+                    await fileStream.CopyToAsync(deflate);
                 compressedData = ms.ToArray();
             }
 
@@ -907,11 +907,11 @@ public partial class MainWindowViewModel : ObservableObject
 
                     await using var fileStream = File.Create(savePath);
                     using var ms = new MemoryStream(compressedData);
-                    await using var brotli = new BrotliStream(ms, CompressionMode.Decompress);
+                    await using var deflate = new DeflateStream(ms, CompressionMode.Decompress);
                     byte[] buffer = new byte[BufferSize];
                     int bytesRead;
                     long received = 0;
-                    while ((bytesRead = await brotli.ReadAsync(buffer)) > 0)
+                    while ((bytesRead = await deflate.ReadAsync(buffer)) > 0)
                     {
                         await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
                         received += bytesRead;

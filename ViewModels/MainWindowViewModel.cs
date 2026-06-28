@@ -650,31 +650,6 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    private static async Task SendPacketsViaSocketAsync(Socket socket, byte[] header, string filePath, CancellationToken ct)
-    {
-        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var reg = ct.Register(() => tcs.TrySetCanceled(ct));
-
-        var args = new SocketAsyncEventArgs();
-        args.SendPacketsElements =
-        [
-            new SendPacketsElement(header),
-            new SendPacketsElement(filePath)
-        ];
-        args.Completed += (_, e) =>
-        {
-            if (e.SocketError == SocketError.Success)
-                tcs.TrySetResult();
-            else
-                tcs.TrySetException(new SocketException((int)e.SocketError));
-        };
-
-        if (!socket.SendPacketsAsync(args))
-            tcs.TrySetResult();
-
-        await tcs.Task;
-    }
-
     private async Task SendFilesToRecipientAsync(string recipientIp, int port, int recipientIndex, int recipientCount, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -730,11 +705,28 @@ public partial class MainWindowViewModel : ObservableObject
             header[4 + fileNameBytes.Length + 8] = 0; // not compressed
             fileSizeBytes.CopyTo(header, 4 + fileNameBytes.Length + 8 + 1); // wireSize = fileSize
 
-            await SendPacketsViaSocketAsync(client.Client, header, filePath, ct);
-            sentTotal += fileSize;
+            await stream.WriteAsync(header, ct);
 
-            double totalProgress = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);
-            Progress = totalProgress;
+            await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            byte[] buffer = new byte[BufferSize];
+            int bytesRead;
+            long readSoFar = 0;
+            while ((bytesRead = await fileStream.ReadAsync(buffer, ct)) > 0)
+            {
+                ct.ThrowIfCancellationRequested();
+                await stream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+                readSoFar += bytesRead;
+                sentTotal += bytesRead;
+
+                double fileProgress = (readSoFar * 100.0) / fileSize;
+                double totalProgress = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);
+                Progress = totalProgress;
+                CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(readSoFar)} / {FormatFileSize(fileSize)}";
+                Status = $"[{recipientIndex + 1}/{recipientCount}] Sending {fileName} ({fileProgress:F1}%)";
+            }
+
+            double totalProgressDone = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);
+            Progress = totalProgressDone;
             CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(fileSize)} / {FormatFileSize(fileSize)}";
             Status = $"[{recipientIndex + 1}/{recipientCount}] Sent {i + 1}/{totalFiles}: {fileName} to {recipientIp}";
         }

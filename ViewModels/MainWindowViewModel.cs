@@ -38,6 +38,14 @@ public partial class MainWindowViewModel : ObservableObject
     private CancellationTokenSource? _scanCts;
     private const int BufferSize = 262144;
     private const int DiscoveryPort = 5556;
+    private const int MinCompressSize = 4096;
+    private static readonly HashSet<string> UncompressibleExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".zip", ".gz", ".bz2", ".xz", ".7z", ".rar",
+        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif", ".ico",
+        ".mp4", ".mp3", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm", ".wav", ".flac", ".aac", ".ogg",
+        ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
+    };
     public string? SelectedFolderRoot { get; set; }
     private readonly FolderPickerOpenOptions _folderPickerOptions = new()
     {
@@ -668,17 +676,23 @@ public partial class MainWindowViewModel : ObservableObject
             await stream.WriteAsync(fileSizeBytes);
 
             // Compress file data with Deflate (fastest algorithm)
-            byte[] compressedData;
-            using (var ms = new MemoryStream())
+            string ext = Path.GetExtension(filePath);
+            bool shouldCompress = fileSize >= MinCompressSize && !UncompressibleExtensions.Contains(ext);
+
+            byte[]? compressedData = null;
+            if (shouldCompress)
             {
-                await using (var fileStream = File.OpenRead(filePath))
-                await using (var deflate = new DeflateStream(ms, CompressionLevel.Fastest))
-                    await fileStream.CopyToAsync(deflate);
-                compressedData = ms.ToArray();
+                using (var ms = new MemoryStream())
+                {
+                    await using (var fileStream = File.OpenRead(filePath))
+                    await using (var deflate = new DeflateStream(ms, CompressionLevel.Fastest))
+                        await fileStream.CopyToAsync(deflate);
+                    compressedData = ms.ToArray();
+                }
             }
 
-            bool useCompression = compressedData.Length < fileSize;
-            long wireSize = useCompression ? compressedData.Length : fileSize;
+            bool useCompression = compressedData != null && compressedData.Length < fileSize;
+            long wireSize = useCompression ? compressedData!.Length : fileSize;
 
             await stream.WriteAsync(new[] { (byte)(useCompression ? 1 : 0) });
             await stream.WriteAsync(BitConverter.GetBytes(wireSize));

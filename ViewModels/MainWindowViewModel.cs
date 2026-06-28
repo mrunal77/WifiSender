@@ -586,6 +586,9 @@ public partial class MainWindowViewModel : ObservableObject
 
         try
         {
+            ThreadPool.GetMinThreads(out int minWorker, out int minIocp);
+            ThreadPool.SetMinThreads(Math.Max(minWorker, recipients.Count * 4), minIocp);
+
             var sendTasks = recipients.Select((recipient, idx) => SendToRecipientAsync(recipient, port, idx, recipients.Count, sendToken));
             await Task.WhenAll(sendTasks);
 
@@ -647,6 +650,31 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    private static async Task SendPacketsViaSocketAsync(Socket socket, byte[] header, string filePath, CancellationToken ct)
+    {
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var reg = ct.Register(() => tcs.TrySetCanceled(ct));
+
+        var args = new SocketAsyncEventArgs();
+        args.SendPacketsElements =
+        [
+            new SendPacketsElement(header),
+            new SendPacketsElement(filePath)
+        ];
+        args.Completed += (_, e) =>
+        {
+            if (e.SocketError == SocketError.Success)
+                tcs.TrySetResult();
+            else
+                tcs.TrySetException(new SocketException((int)e.SocketError));
+        };
+
+        if (!socket.SendPacketsAsync(args))
+            tcs.TrySetResult();
+
+        await tcs.Task;
+    }
+
     private async Task SendFilesToRecipientAsync(string recipientIp, int port, int recipientIndex, int recipientCount, CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();
@@ -702,28 +730,11 @@ public partial class MainWindowViewModel : ObservableObject
             header[4 + fileNameBytes.Length + 8] = 0; // not compressed
             fileSizeBytes.CopyTo(header, 4 + fileNameBytes.Length + 8 + 1); // wireSize = fileSize
 
-            await stream.WriteAsync(header, ct);
+            await SendPacketsViaSocketAsync(client.Client, header, filePath, ct);
+            sentTotal += fileSize;
 
-            await using var fileStream = File.OpenRead(filePath);
-            byte[] buffer = new byte[BufferSize];
-            int bytesRead;
-            long readSoFar = 0;
-            while ((bytesRead = await fileStream.ReadAsync(buffer)) > 0)
-            {
-                ct.ThrowIfCancellationRequested();
-                await stream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
-                readSoFar += bytesRead;
-                sentTotal += bytesRead;
-
-                double fileProgress = (readSoFar * 100.0) / fileSize;
-                double totalProgress = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);
-                Progress = totalProgress;
-                CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(readSoFar)} / {FormatFileSize(fileSize)}";
-                Status = $"[{recipientIndex + 1}/{recipientCount}] Sending {fileName} ({fileProgress:F1}%)";
-            }
-
-            double totalProgressDone = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);
-            Progress = totalProgressDone;
+            double totalProgress = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);
+            Progress = totalProgress;
             CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(fileSize)} / {FormatFileSize(fileSize)}";
             Status = $"[{recipientIndex + 1}/{recipientCount}] Sent {i + 1}/{totalFiles}: {fileName} to {recipientIp}";
         }
@@ -928,7 +939,7 @@ public partial class MainWindowViewModel : ObservableObject
                     byte[] compressedData = new byte[wireSize];
                     await ReadExactAsync(stream, compressedData, ct);
 
-                    await using var fileStream = File.Create(savePath);
+                    await using var fileStream = new FileStream(savePath, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, FileOptions.Asynchronous);
                     using var ms = new MemoryStream(compressedData);
                     await using var deflate = new DeflateStream(ms, CompressionMode.Decompress);
                     byte[] buffer = new byte[BufferSize];
@@ -951,7 +962,7 @@ public partial class MainWindowViewModel : ObservableObject
                 }
                 else
                 {
-                    await using var fileStream = File.Create(savePath);
+                    await using var fileStream = new FileStream(savePath, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, FileOptions.Asynchronous);
                     byte[] buffer = new byte[BufferSize];
                     long remaining = wireSize;
                     long received = 0;

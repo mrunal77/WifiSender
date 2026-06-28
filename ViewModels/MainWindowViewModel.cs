@@ -609,7 +609,10 @@ public partial class MainWindowViewModel : ObservableObject
             var relative = filePath.Substring(SelectedFolderRoot.Length)
                 .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             if (relative.Length > 0)
-                return relative;
+            {
+                string folderName = Path.GetFileName(SelectedFolderRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                return Path.Combine(folderName, relative);
+            }
         }
         return Path.GetFileName(filePath);
     }

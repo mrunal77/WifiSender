@@ -20,14 +20,30 @@ using Avalonia.Styling;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
+using System.ComponentModel;
+
 namespace WifiSender.ViewModels;
 
-public class DiscoveredDevice
+public class DiscoveredDevice : INotifyPropertyChanged
 {
     public string IpAddress { get; set; } = "";
     public string Port { get; set; } = "";
     public string DeviceName { get; set; } = "";
     public string DisplayName => string.IsNullOrEmpty(DeviceName) ? $"{IpAddress}:{Port}" : $"{DeviceName} ({IpAddress})";
+
+    private bool _isSelected;
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected == value) return;
+            _isSelected = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 }
 
 public partial class MainWindowViewModel : ObservableObject
@@ -59,7 +75,6 @@ public partial class MainWindowViewModel : ObservableObject
     private string _localIp = "0.0.0.0";
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SendFilesCommand))]
     private string _port = "5555";
 
     partial void OnPortChanged(string value)
@@ -69,19 +84,6 @@ public partial class MainWindowViewModel : ObservableObject
             clean = clean.TrimStart('0');
         if (clean != value)
             Port = clean;
-    }
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SendFilesCommand))]
-    private string _recipientIp = "";
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SendFilesCommand))]
-    private string _recipientIps = "";
-
-    partial void OnRecipientIpsChanged(string value)
-    {
-        RecipientIp = GetRecipientTargets(value).FirstOrDefault() ?? "";
     }
 
     [ObservableProperty]
@@ -116,9 +118,6 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isScanning;
-
-    [ObservableProperty]
-    private DiscoveredDevice? _selectedDevice;
 
     [ObservableProperty]
     private int _selectedTabIndex;
@@ -185,7 +184,22 @@ public partial class MainWindowViewModel : ObservableObject
             OnPropertyChanged(nameof(HasSelectedFiles));
             SendFilesCommand.NotifyCanExecuteChanged();
         };
-        DiscoveredDevices.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasDiscoveredDevices));
+        DiscoveredDevices.CollectionChanged += (_, args) =>
+        {
+            OnPropertyChanged(nameof(HasDiscoveredDevices));
+            if (args.NewItems != null)
+                foreach (DiscoveredDevice d in args.NewItems)
+                    d.PropertyChanged += OnDevicePropertyChanged;
+            if (args.OldItems != null)
+                foreach (DiscoveredDevice d in args.OldItems)
+                    d.PropertyChanged -= OnDevicePropertyChanged;
+        };
+    }
+
+    private void OnDevicePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(DiscoveredDevice.IsSelected))
+            SendFilesCommand.NotifyCanExecuteChanged();
     }
 
     private void OnActualThemeVariantChanged(object? sender, EventArgs e)
@@ -334,19 +348,8 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    private IReadOnlyList<string> GetRecipientTargets()
-    {
-        return GetRecipientTargets(RecipientIps);
-    }
-
-    private static IReadOnlyList<string> GetRecipientTargets(string? value)
-    {
-        return (value ?? "")
-            .Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(ip => !string.IsNullOrWhiteSpace(ip))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-    }
+    private IReadOnlyList<DiscoveredDevice> GetSelectedDevices() =>
+        DiscoveredDevices.Where(d => d.IsSelected).ToArray();
 
     [RelayCommand]
     private async Task SelectFiles(Window? window)
@@ -543,37 +546,31 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void SelectDevice(DiscoveredDevice? device)
+    private void SelectAllDevices()
     {
-        if (device != null)
-        {
-            SelectedDevice = device;
-            RecipientIps = device.IpAddress;
-            if (!string.IsNullOrEmpty(device.Port))
-                Port = device.Port;
-            Status = $"Selected: {device.DisplayName}";
-        }
+        foreach (var d in DiscoveredDevices)
+            d.IsSelected = true;
+    }
+
+    [RelayCommand]
+    private void ClearDeviceSelection()
+    {
+        foreach (var d in DiscoveredDevices)
+            d.IsSelected = false;
     }
 
     public bool CanSendFiles() =>
         SelectedFiles.Count > 0
-        && GetRecipientTargets().Count > 0
-        && int.TryParse(Port, out int p) && p > 0 && p <= 65535
+        && DiscoveredDevices.Any(d => d.IsSelected)
         && !IsSending;
 
     [RelayCommand(CanExecute = nameof(CanSendFiles))]
     private async Task SendFiles(Window? window)
     {
-        var recipients = GetRecipientTargets();
-        if (recipients.Count == 0)
+        var devices = GetSelectedDevices();
+        if (devices.Count == 0)
         {
-            Status = "Enter one or more receiver IP addresses";
-            return;
-        }
-
-        if (!int.TryParse(Port, out int port) || port <= 0 || port > 65535)
-        {
-            Status = "Invalid port number!";
+            Status = "Select one or more receiver devices";
             return;
         }
 
@@ -587,9 +584,10 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             ThreadPool.GetMinThreads(out int minWorker, out int minIocp);
-            ThreadPool.SetMinThreads(Math.Max(minWorker, recipients.Count * 4), minIocp);
+            ThreadPool.SetMinThreads(Math.Max(minWorker, devices.Count * 4), minIocp);
 
-            var sendTasks = recipients.Select((recipient, idx) => SendToRecipientAsync(recipient, port, idx, recipients.Count, sendToken));
+            var sendTasks = devices.Select((device, idx) =>
+                SendToRecipientAsync(device.IpAddress, int.Parse(device.Port), idx, devices.Count, sendToken));
             await Task.WhenAll(sendTasks);
 
             Status = "Finished sending to all receivers";
@@ -1054,41 +1052,37 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task TestConnection()
     {
-        var recipients = GetRecipientTargets();
-        if (recipients.Count == 0)
+        var devices = GetSelectedDevices();
+        if (devices.Count == 0)
         {
-            ConnectionTestResult = "Enter one or more receiver IP addresses";
-            return;
-        }
-
-        if (!int.TryParse(Port, out int port) || port <= 0 || port > 65535)
-        {
-            ConnectionTestResult = "Invalid port";
+            ConnectionTestResult = "Select one or more receiver devices";
             return;
         }
 
         ConnectionTestResult = "Testing receivers...";
 
         var results = new List<string>();
-        foreach (var recipient in recipients)
+        foreach (var device in devices)
         {
+            string ip = device.IpAddress;
+            int port = int.Parse(device.Port);
             try
             {
                 using var client = new TcpClient();
-                var connectTask = client.ConnectAsync(recipient, port);
+                var connectTask = client.ConnectAsync(ip, port);
 
                 if (await Task.WhenAny(connectTask, Task.Delay(3000)) == connectTask)
                 {
-                    results.Add($"OK - connected to {recipient}:{port}");
+                    results.Add($"OK - connected to {ip}:{port}");
                 }
                 else
                 {
-                    results.Add($"Timeout - port not open on {recipient}:{port}");
+                    results.Add($"Timeout - port not open on {ip}:{port}");
                 }
             }
             catch (Exception ex)
             {
-                results.Add($"Failed - {recipient}:{port}: {ex.Message}");
+                results.Add($"Failed - {ip}:{port}: {ex.Message}");
             }
         }
 

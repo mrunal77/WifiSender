@@ -54,6 +54,9 @@ public partial class MainWindowViewModel : ObservableObject
     private const int BufferSize = 1048576;
     private const int NetworkTimeoutMs = 30000;
     private const int DiscoveryPort = 5556;
+    private long _sendTotalBytes;
+    private long _sendCompletedBytes;
+    private readonly object _sendProgressLock = new();
     private readonly FolderPickerOpenOptions _folderPickerOptions = new()
     {
         Title = "Select Download Folder",
@@ -570,6 +573,13 @@ public partial class MainWindowViewModel : ObservableObject
         Progress = 0;
         CurrentFileName = "";
         CurrentFileProgress = "";
+        _sendCompletedBytes = 0;
+        _sendTotalBytes = 0;
+        foreach (var f in SelectedFiles)
+        {
+            if (File.Exists(f))
+                _sendTotalBytes += new FileInfo(f).Length;
+        }
         _sendCts = new CancellationTokenSource();
         var sendToken = _sendCts.Token;
 
@@ -642,29 +652,18 @@ public partial class MainWindowViewModel : ObservableObject
         return Path.GetFileName(filePath);
     }
 
-    private static async Task SendPacketsViaSocketAsync(Socket socket, byte[] header, string filePath, CancellationToken ct)
+    private void ReportSendProgress(long sentDelta, long filePos, long fileSize, int recipientIdx, int recipientCount, string fileName)
     {
-        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var reg = ct.Register(() => tcs.TrySetCanceled(ct));
-
-        var args = new SocketAsyncEventArgs();
-        args.SendPacketsElements =
-        [
-            new SendPacketsElement(header),
-            new SendPacketsElement(filePath)
-        ];
-        args.Completed += (_, e) =>
+        long completed;
+        lock (_sendProgressLock)
         {
-            if (e.SocketError == SocketError.Success)
-                tcs.TrySetResult();
-            else
-                tcs.TrySetException(new SocketException((int)e.SocketError));
-        };
-
-        if (!socket.SendPacketsAsync(args))
-            tcs.TrySetResult();
-
-        await tcs.Task;
+            _sendCompletedBytes += sentDelta;
+            completed = _sendCompletedBytes;
+        }
+        double pct = Math.Min(completed * 100.0 / (_sendTotalBytes * recipientCount), 100.0);
+        Progress = Math.Round(pct, 1);
+        CurrentFileProgress = $"Receiver {recipientIdx + 1}/{recipientCount}: {FormatFileSize(filePos)} / {FormatFileSize(fileSize)}";
+        Status = $"[{recipientIdx + 1}/{recipientCount}] Sending {fileName} ({filePos * 100.0 / fileSize:F1}%)";
     }
 
     private async Task SendToRecipientAsync(string recipientIp, int port, int recipientIndex, int recipientCount, CancellationToken ct)
@@ -717,10 +716,6 @@ public partial class MainWindowViewModel : ObservableObject
         if (totalBytes == 0)
             throw new InvalidOperationException("No selected files could be sent.");
 
-        long sentTotal = 0;
-        double recipientBaseProgress = (recipientIndex * 100.0) / recipientCount;
-        int lastReportedPct = -1;
-
         for (int fileIdx = 0; fileIdx < totalFiles; fileIdx++)
         {
             ct.ThrowIfCancellationRequested();
@@ -740,15 +735,16 @@ public partial class MainWindowViewModel : ObservableObject
 
             await stream.WriteAsync(header, ct);
 
-            await SendPacketsViaSocketAsync(client.Client, [], filePath, ct);
-            sentTotal += fileSize;
-
-            int totalPct = (int)(recipientBaseProgress + (sentTotal * 100.0 / totalBytes / recipientCount));
-            if (totalPct != lastReportedPct)
+            await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            byte[] buffer = new byte[BufferSize];
+            int bytesRead;
+            long readSoFar = 0;
+            while ((bytesRead = await fileStream.ReadAsync(buffer, ct)) > 0)
             {
-                lastReportedPct = totalPct;
-                Progress = totalPct;
-                CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(fileSize)} / {FormatFileSize(fileSize)}";
+                ct.ThrowIfCancellationRequested();
+                await stream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+                readSoFar += bytesRead;
+                ReportSendProgress(bytesRead, readSoFar, fileSize, recipientIndex, recipientCount, sendName);
             }
         }
 

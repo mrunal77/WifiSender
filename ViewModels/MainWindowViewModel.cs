@@ -34,6 +34,7 @@ public partial class MainWindowViewModel : ObservableObject
 {
     private TcpListener? _server;
     private CancellationTokenSource? _cts;
+    private CancellationTokenSource? _sendCts;
     private UdpClient? _udpScanner;
     private CancellationTokenSource? _scanCts;
     private const int BufferSize = 1048576;
@@ -156,6 +157,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     public ObservableCollection<string> SelectedFiles { get; } = new();
     public ObservableCollection<DiscoveredDevice> DiscoveredDevices { get; } = new();
+    public string? SelectedFolderRoot { get; set; }
 
     public bool HasSelectedFiles => SelectedFiles.Count > 0;
     public bool HasDiscoveredDevices => DiscoveredDevices.Count > 0;
@@ -356,6 +358,7 @@ public partial class MainWindowViewModel : ObservableObject
         });
 
         SelectedFiles.Clear();
+        SelectedFolderRoot = null;
         foreach (var file in files)
         {
             SelectedFiles.Add(file.Path.LocalPath);
@@ -398,6 +401,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         SelectedFiles.Clear();
+        SelectedFolderRoot = folderPath;
         foreach (var f in files)
             SelectedFiles.Add(f);
 
@@ -571,9 +575,14 @@ public partial class MainWindowViewModel : ObservableObject
         Progress = 0;
         CurrentFileName = "";
         CurrentFileProgress = "";
+        _sendCts = new CancellationTokenSource();
+        var sendToken = _sendCts.Token;
 
         try
         {
+            ThreadPool.GetMinThreads(out int minWorker, out int minIocp);
+            ThreadPool.SetMinThreads(Math.Max(minWorker, recipients.Count * 4), minIocp);
+
             var tasks = recipients.Select((recipient, i) =>
                 SendFilesToRecipientAsync(recipient, port, i, recipients.Count));
 
@@ -584,10 +593,63 @@ public partial class MainWindowViewModel : ObservableObject
             CurrentFileName = "";
             CurrentFileProgress = "";
         }
+        catch (OperationCanceledException)
+        {
+            Status = "Sending cancelled";
+        }
         finally
         {
             IsSending = false;
+            _sendCts?.Dispose();
+            _sendCts = null;
         }
+    }
+
+    [RelayCommand]
+    private void StopSending()
+    {
+        _sendCts?.Cancel();
+        Status = "Stopping send...";
+    }
+
+    private string GetSendFileName(string filePath)
+    {
+        if (SelectedFolderRoot != null && filePath.StartsWith(SelectedFolderRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            var relative = filePath.Substring(SelectedFolderRoot.Length)
+                .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (relative.Length > 0)
+            {
+                string folderName = Path.GetFileName(SelectedFolderRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                return Path.Combine(folderName, relative);
+            }
+        }
+        return Path.GetFileName(filePath);
+    }
+
+    private static async Task SendPacketsViaSocketAsync(Socket socket, byte[] header, string filePath, CancellationToken ct)
+    {
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var reg = ct.Register(() => tcs.TrySetCanceled(ct));
+
+        var args = new SocketAsyncEventArgs();
+        args.SendPacketsElements =
+        [
+            new SendPacketsElement(header),
+            new SendPacketsElement(filePath)
+        ];
+        args.Completed += (_, e) =>
+        {
+            if (e.SocketError == SocketError.Success)
+                tcs.TrySetResult();
+            else
+                tcs.TrySetException(new SocketException((int)e.SocketError));
+        };
+
+        if (!socket.SendPacketsAsync(args))
+            tcs.TrySetResult();
+
+        await tcs.Task;
     }
 
     private async Task SendFilesToRecipientAsync(string recipientIp, int port, int recipientIndex, int recipientCount)
@@ -628,101 +690,30 @@ public partial class MainWindowViewModel : ObservableObject
 
         for (int fileIdx = 0; fileIdx < totalFiles; fileIdx++)
         {
-            var (filePath, fileName, fileSize) = fileEntries[fileIdx];
+            var (filePath, _, fileSize) = fileEntries[fileIdx];
             if (filePath == null)
                 continue;
 
-            CurrentFileName = fileName;
+            string sendName = GetSendFileName(filePath);
+            CurrentFileName = sendName;
 
-            byte[] fileNameBytes = Encoding.UTF8.GetBytes(fileName);
-            byte[] fileNameLengthBytes = BitConverter.GetBytes(fileNameBytes.Length);
-            byte[] fileSizeBytes = BitConverter.GetBytes(fileSize);
+            byte[] fileNameBytes = Encoding.UTF8.GetBytes(sendName);
+            byte[] header = new byte[4 + fileNameBytes.Length + 8];
+            BitConverter.GetBytes(fileNameBytes.Length).CopyTo(header, 0);
+            fileNameBytes.CopyTo(header, 4);
+            BitConverter.GetBytes(fileSize).CopyTo(header, 4 + fileNameBytes.Length);
 
-            await stream.WriteAsync(fileNameLengthBytes);
-            await stream.WriteAsync(fileNameBytes);
-            await stream.WriteAsync(fileSizeBytes);
+            await stream.WriteAsync(header);
 
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(_cts?.Token ?? CancellationToken.None);
+            await SendPacketsViaSocketAsync(client.Client, [], filePath, CancellationToken.None);
+            sentTotal += fileSize;
 
-            var channel = Channel.CreateBounded<byte[]>(new BoundedChannelOptions(ChannelCapacity)
+            int totalPct = (int)(recipientBaseProgress + (sentTotal * 100.0 / totalBytes / recipientCount));
+            if (totalPct != lastReportedPct)
             {
-                FullMode = BoundedChannelFullMode.Wait,
-                SingleReader = true,
-                SingleWriter = true
-            });
-
-            long sent = 0;
-
-            var readTask = Task.Run(async () =>
-            {
-                try
-                {
-                    await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read,
-                        BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
-
-                    byte[] readBuffer = new byte[BufferSize];
-                    while (true)
-                    {
-                        int bytesRead = await fileStream.ReadAsync(readBuffer.AsMemory(0, BufferSize), cts.Token);
-                        if (bytesRead == 0)
-                            break;
-
-                        byte[] chunk = new byte[bytesRead];
-                        Buffer.BlockCopy(readBuffer, 0, chunk, 0, bytesRead);
-                        await channel.Writer.WriteAsync(chunk, cts.Token);
-                    }
-
-                    channel.Writer.Complete();
-                }
-                catch (OperationCanceledException)
-                {
-                    channel.Writer.TryComplete();
-                }
-                catch (Exception ex)
-                {
-                    channel.Writer.TryComplete(ex);
-                }
-            });
-
-            var writeTask = Task.Run(async () =>
-            {
-                try
-                {
-                    await foreach (var chunk in channel.Reader.ReadAllAsync(cts.Token))
-                    {
-                        await stream.WriteAsync(chunk.AsMemory(), cts.Token);
-
-                        sent += chunk.Length;
-                        sentTotal += chunk.Length;
-
-                        int totalPct = (int)(recipientBaseProgress + (sentTotal * 100.0 / totalBytes / recipientCount));
-                        if (totalPct != lastReportedPct)
-                        {
-                            lastReportedPct = totalPct;
-                            Progress = totalPct;
-                            CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(sent)} / {FormatFileSize(fileSize)}";
-                        }
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception)
-                {
-                    cts.Cancel();
-                    throw;
-                }
-            });
-
-            try
-            {
-                await writeTask;
-            }
-            catch
-            {
-                cts.Cancel();
-                throw;
+                lastReportedPct = totalPct;
+                Progress = totalPct;
+                CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(fileSize)} / {FormatFileSize(fileSize)}";
             }
         }
 
@@ -901,9 +892,13 @@ public partial class MainWindowViewModel : ObservableObject
 
                 string fileName = Encoding.UTF8.GetString(fileNameBuffer);
 
-                fileName = fileName.Replace("\\", "_").Replace("/", "_");
-                foreach (char c in Path.GetInvalidFileNameChars())
-                    fileName = fileName.Replace(c, '_');
+                string[] pathParts = fileName.Split(new[] { '/', '\\' }, StringSplitOptions.None);
+                for (int i = 0; i < pathParts.Length; i++)
+                {
+                    foreach (char c in Path.GetInvalidFileNameChars())
+                        pathParts[i] = pathParts[i].Replace(c, '_');
+                }
+                fileName = string.Join(Path.DirectorySeparatorChar, pathParts);
 
                 byte[] sizeBuffer = new byte[8];
                 int sizeRead = await ReadExactAsync(stream, sizeBuffer, ct);
@@ -924,13 +919,18 @@ public partial class MainWindowViewModel : ObservableObject
                 CurrentFileName = fileName;
 
                 string savePath = Path.Combine(DownloadFolder, fileName);
+                string? saveDir = Path.GetDirectoryName(savePath);
+                if (!string.IsNullOrEmpty(saveDir) && !Directory.Exists(saveDir))
+                    Directory.CreateDirectory(saveDir);
+
                 string originalPath = savePath;
                 int counter = 1;
                 while (File.Exists(savePath))
                 {
                     string name = Path.GetFileNameWithoutExtension(originalPath);
                     string ext = Path.GetExtension(originalPath);
-                    savePath = Path.Combine(DownloadFolder, $"{name} ({counter}){ext}");
+                    string newName = $"{name} ({counter}){ext}";
+                    savePath = Path.Combine(saveDir ?? DownloadFolder, newName);
                     counter++;
                 }
 
@@ -939,7 +939,7 @@ public partial class MainWindowViewModel : ObservableObject
                     Status = $"Receiving: {fileName} ({FormatFileSize(fileSize)})";
                 });
 
-                await using var fileStream = File.Create(savePath);
+                await using var fileStream = new FileStream(savePath, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, FileOptions.Asynchronous);
                 byte[] buffer = new byte[BufferSize];
                 long received = 0;
                 bool complete = true;
@@ -1094,6 +1094,7 @@ public partial class MainWindowViewModel : ObservableObject
     private void ClearFiles()
     {
         SelectedFiles.Clear();
+        SelectedFolderRoot = null;
         Status = "Files cleared";
     }
 

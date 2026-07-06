@@ -21,6 +21,14 @@ public partial class MainWindow : Window
         SendScrollViewer.ScrollChanged += OnScrollChanged;
         ReceiveScrollViewer.ScrollChanged += OnScrollChanged;
         MainTabControl.SelectionChanged += OnTabSelectionChanged;
+
+        Opened += (_, _) =>
+        {
+            if (DataContext is MainWindowViewModel vm && !vm.IsReceiving)
+            {
+                vm.StartReceivingCommand.Execute(this);
+            }
+        };
     }
 
     private void OnScrollChanged(object? sender, ScrollChangedEventArgs e)

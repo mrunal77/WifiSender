@@ -688,6 +688,7 @@ public partial class MainWindowViewModel : ObservableObject
 
         using var client = new TcpClient();
         client.NoDelay = true;
+        client.LingerState = new LingerOption(true, 30);
         client.SendBufferSize = BufferSize;
         client.ReceiveBufferSize = BufferSize;
         client.Client.SendTimeout = NetworkTimeoutMs;
@@ -754,7 +755,20 @@ public partial class MainWindowViewModel : ObservableObject
         byte[] endMarker = BitConverter.GetBytes((int)0);
         await stream.WriteAsync(endMarker, ct);
         await stream.FlushAsync(ct);
-        client.Client.Shutdown(SocketShutdown.Send);
+
+        using var readCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        readCts.CancelAfter(TimeSpan.FromSeconds(30));
+        try
+        {
+            byte[] ackBuf = new byte[1];
+            int ackRead = await ReadExactAsync(stream, ackBuf, readCts.Token);
+            if (ackRead == 0 || ackBuf[0] != 0xFF)
+                throw new IOException("Receiver did not acknowledge transfer");
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new TimeoutException("Timed out waiting for receiver acknowledgment");
+        }
     }
 
     [RelayCommand]
@@ -908,7 +922,11 @@ public partial class MainWindowViewModel : ObservableObject
                 int fileNameLength = BitConverter.ToInt32(lengthBuffer, 0);
 
                 if (fileNameLength == 0)
+                {
+                    try { await stream.WriteAsync(new byte[] { 0xFF }, ct); }
+                    catch { }
                     break;
+                }
 
                 if (fileNameLength < 0 || fileNameLength > 4096)
                 {

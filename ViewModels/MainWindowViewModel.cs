@@ -449,6 +449,7 @@ public partial class MainWindowViewModel : ObservableObject
         DiscoveredDevices.Clear();
         Status = "Scanning for nearby devices...";
 
+        _scanCts?.Dispose();
         _scanCts = new CancellationTokenSource();
 
         try
@@ -542,6 +543,8 @@ public partial class MainWindowViewModel : ObservableObject
             IsScanning = false;
             _udpScanner?.Close();
             _udpScanner?.Dispose();
+            _scanCts?.Dispose();
+            _scanCts = null;
         }
     }
 
@@ -586,14 +589,35 @@ public partial class MainWindowViewModel : ObservableObject
             ThreadPool.GetMinThreads(out int minWorker, out int minIocp);
             ThreadPool.SetMinThreads(Math.Max(minWorker, devices.Count * 4), minIocp);
 
-            var sendTasks = devices.Select((device, idx) =>
-                SendToRecipientAsync(device.IpAddress, int.Parse(device.Port), idx, devices.Count, sendToken));
+            var failures = new List<string>();
+            var sendTasks = devices.Select(async (device, idx) =>
+            {
+                try
+                {
+                    await SendToRecipientAsync(device.IpAddress, int.Parse(device.Port), idx, devices.Count, sendToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    lock (failures) failures.Add($"{device.IpAddress}:{device.Port}: {ex.Message}");
+                }
+            });
             await Task.WhenAll(sendTasks);
 
-            Status = "Finished sending to all receivers";
-            Progress = 100;
-            CurrentFileName = "";
-            CurrentFileProgress = "";
+            if (failures.Count == 0)
+            {
+                Status = "Finished sending to all receivers";
+                Progress = 100;
+                CurrentFileName = "";
+                CurrentFileProgress = "";
+            }
+            else
+            {
+                Status = $"Send completed with errors: {string.Join("; ", failures)}";
+            }
         }
         catch (OperationCanceledException)
         {
@@ -641,10 +665,6 @@ public partial class MainWindowViewModel : ObservableObject
         {
             Status = $"Cancelled sending to {recipientIp}";
             throw;
-        }
-        catch (Exception ex)
-        {
-            Status = $"[{recipientIndex + 1}/{recipientCount}] Failed to send to {recipientIp}: {ex.Message}";
         }
     }
 
@@ -799,6 +819,7 @@ public partial class MainWindowViewModel : ObservableObject
         IsReceiving = true;
         Status = $"Listening on {LocalIp}:{port} (broadcasting to network)...";
         Progress = 0;
+        _cts?.Dispose();
         _cts = new CancellationTokenSource();
 
         _ = RunDiscoveryServiceAsync(port);
@@ -824,6 +845,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         finally
         {
+            _server?.Stop();
             IsReceiving = false;
         }
     }
@@ -1075,6 +1097,10 @@ public partial class MainWindowViewModel : ObservableObject
     {
         _cts?.Cancel();
         _scanCts?.Cancel();
+        _cts?.Dispose();
+        _cts = null;
+        _scanCts?.Dispose();
+        _scanCts = null;
         _server?.Stop();
         IsReceiving = false;
         IsScanning = false;

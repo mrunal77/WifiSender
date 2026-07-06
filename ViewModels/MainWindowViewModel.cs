@@ -10,6 +10,7 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -35,7 +36,9 @@ public partial class MainWindowViewModel : ObservableObject
     private CancellationTokenSource? _cts;
     private UdpClient? _udpScanner;
     private CancellationTokenSource? _scanCts;
-    private const int BufferSize = 262144;
+    private const int BufferSize = 1048576;
+    private const int NetworkTimeoutMs = 30000;
+    private const int ChannelCapacity = 4;
     private const int DiscoveryPort = 5556;
     private readonly FolderPickerOpenOptions _folderPickerOptions = new()
     {
@@ -571,22 +574,10 @@ public partial class MainWindowViewModel : ObservableObject
 
         try
         {
-            for (int i = 0; i < recipients.Count; i++)
-            {
-                var recipient = recipients[i];
-                Progress = (i * 100.0) / recipients.Count;
-                Status = $"[{i + 1}/{recipients.Count}] Connecting to {recipient}:{port}...";
+            var tasks = recipients.Select((recipient, i) =>
+                SendFilesToRecipientAsync(recipient, port, i, recipients.Count));
 
-                try
-                {
-                    await SendFilesToRecipientAsync(recipient, port, i, recipients.Count);
-                    Status = $"[{i + 1}/{recipients.Count}] Sent to {recipient}";
-                }
-                catch (Exception ex)
-                {
-                    Status = $"[{i + 1}/{recipients.Count}] Failed to send to {recipient}: {ex.Message}";
-                }
-            }
+            await Task.WhenAll(tasks);
 
             Status = "Finished sending to all receivers";
             Progress = 100;
@@ -602,21 +593,30 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task SendFilesToRecipientAsync(string recipientIp, int port, int recipientIndex, int recipientCount)
     {
         using var client = new TcpClient();
+        client.NoDelay = true;
         client.SendBufferSize = BufferSize;
         client.ReceiveBufferSize = BufferSize;
+        client.Client.SendTimeout = NetworkTimeoutMs;
         await client.ConnectAsync(recipientIp, port);
 
         await using var stream = client.GetStream();
 
-        Status = $"[{recipientIndex + 1}/{recipientCount}] Connected to {recipientIp}. Sending files...";
-
         int totalFiles = SelectedFiles.Count;
+        var fileEntries = new (string Path, string Name, long Size)[totalFiles];
         long totalBytes = 0;
 
-        foreach (var f in SelectedFiles)
+        for (int i = 0; i < totalFiles; i++)
         {
-            if (File.Exists(f))
-                totalBytes += new FileInfo(f).Length;
+            string path = SelectedFiles[i];
+            if (!File.Exists(path))
+            {
+                fileEntries[i] = (null!, null!, 0);
+                continue;
+            }
+            var info = new FileInfo(path);
+            long size = info.Length;
+            fileEntries[i] = (path, info.Name, size);
+            totalBytes += size;
         }
 
         if (totalBytes == 0)
@@ -624,19 +624,13 @@ public partial class MainWindowViewModel : ObservableObject
 
         long sentTotal = 0;
         double recipientBaseProgress = (recipientIndex * 100.0) / recipientCount;
+        int lastReportedPct = -1;
 
-        for (int i = 0; i < totalFiles; i++)
+        for (int fileIdx = 0; fileIdx < totalFiles; fileIdx++)
         {
-            string filePath = SelectedFiles[i];
-
-            if (!File.Exists(filePath))
-            {
-                Status = $"[{recipientIndex + 1}/{recipientCount}] File not found: {Path.GetFileName(filePath)}";
+            var (filePath, fileName, fileSize) = fileEntries[fileIdx];
+            if (filePath == null)
                 continue;
-            }
-
-            string fileName = Path.GetFileName(filePath);
-            long fileSize = new FileInfo(filePath).Length;
 
             CurrentFileName = fileName;
 
@@ -648,30 +642,94 @@ public partial class MainWindowViewModel : ObservableObject
             await stream.WriteAsync(fileNameBytes);
             await stream.WriteAsync(fileSizeBytes);
 
-            await using var fileStream = File.OpenRead(filePath);
-            byte[] buffer = new byte[BufferSize];
-            long sent = 0;
-            int bytesRead;
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(_cts?.Token ?? CancellationToken.None);
 
-            while ((bytesRead = await fileStream.ReadAsync(buffer)) > 0)
+            var channel = Channel.CreateBounded<byte[]>(new BoundedChannelOptions(ChannelCapacity)
             {
-                await stream.WriteAsync(buffer.AsMemory(0, bytesRead));
-                sent += bytesRead;
-                sentTotal += bytesRead;
+                FullMode = BoundedChannelFullMode.Wait,
+                SingleReader = true,
+                SingleWriter = true
+            });
 
-                double fileProgress = (sent * 100.0) / fileSize;
-                double totalProgress = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);
+            long sent = 0;
 
-                Progress = totalProgress;
-                CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(sent)} / {FormatFileSize(fileSize)}";
-                Status = $"[{recipientIndex + 1}/{recipientCount}] Sending {fileName} to {recipientIp} ({fileProgress:F1}%)";
+            var readTask = Task.Run(async () =>
+            {
+                try
+                {
+                    await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read,
+                        BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+
+                    byte[] readBuffer = new byte[BufferSize];
+                    while (true)
+                    {
+                        int bytesRead = await fileStream.ReadAsync(readBuffer.AsMemory(0, BufferSize), cts.Token);
+                        if (bytesRead == 0)
+                            break;
+
+                        byte[] chunk = new byte[bytesRead];
+                        Buffer.BlockCopy(readBuffer, 0, chunk, 0, bytesRead);
+                        await channel.Writer.WriteAsync(chunk, cts.Token);
+                    }
+
+                    channel.Writer.Complete();
+                }
+                catch (OperationCanceledException)
+                {
+                    channel.Writer.TryComplete();
+                }
+                catch (Exception ex)
+                {
+                    channel.Writer.TryComplete(ex);
+                }
+            });
+
+            var writeTask = Task.Run(async () =>
+            {
+                try
+                {
+                    await foreach (var chunk in channel.Reader.ReadAllAsync(cts.Token))
+                    {
+                        await stream.WriteAsync(chunk.AsMemory(), cts.Token);
+
+                        sent += chunk.Length;
+                        sentTotal += chunk.Length;
+
+                        int totalPct = (int)(recipientBaseProgress + (sentTotal * 100.0 / totalBytes / recipientCount));
+                        if (totalPct != lastReportedPct)
+                        {
+                            lastReportedPct = totalPct;
+                            Progress = totalPct;
+                            CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(sent)} / {FormatFileSize(fileSize)}";
+                        }
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception)
+                {
+                    cts.Cancel();
+                    throw;
+                }
+            });
+
+            try
+            {
+                await writeTask;
             }
-
-            Status = $"[{recipientIndex + 1}/{recipientCount}] Sent {i + 1}/{totalFiles}: {fileName} to {recipientIp}";
+            catch
+            {
+                cts.Cancel();
+                throw;
+            }
         }
 
         byte[] endMarker = BitConverter.GetBytes((int)0);
         await stream.WriteAsync(endMarker);
+        await stream.FlushAsync();
+        client.Client.Shutdown(SocketShutdown.Send);
     }
 
     [RelayCommand]
@@ -802,8 +860,10 @@ public partial class MainWindowViewModel : ObservableObject
     {
         try
         {
+            client.NoDelay = true;
             client.ReceiveBufferSize = BufferSize;
             client.SendBufferSize = BufferSize;
+            client.Client.ReceiveTimeout = NetworkTimeoutMs;
 
             var remoteEndPoint = (IPEndPoint?)client.Client.RemoteEndPoint;
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
@@ -825,13 +885,41 @@ public partial class MainWindowViewModel : ObservableObject
                 if (fileNameLength == 0)
                     break;
 
+                if (fileNameLength < 0 || fileNameLength > 4096)
+                {
+                    Status = $"Invalid file name length: {fileNameLength}";
+                    break;
+                }
+
                 byte[] fileNameBuffer = new byte[fileNameLength];
-                await ReadExactAsync(stream, fileNameBuffer, ct);
+                int fileNameRead = await ReadExactAsync(stream, fileNameBuffer, ct);
+                if (fileNameRead != fileNameLength)
+                {
+                    Status = "Connection closed while reading file name";
+                    break;
+                }
+
                 string fileName = Encoding.UTF8.GetString(fileNameBuffer);
 
+                fileName = fileName.Replace("\\", "_").Replace("/", "_");
+                foreach (char c in Path.GetInvalidFileNameChars())
+                    fileName = fileName.Replace(c, '_');
+
                 byte[] sizeBuffer = new byte[8];
-                await ReadExactAsync(stream, sizeBuffer, ct);
+                int sizeRead = await ReadExactAsync(stream, sizeBuffer, ct);
+                if (sizeRead != 8)
+                {
+                    Status = "Connection closed while reading file size";
+                    break;
+                }
+
                 long fileSize = BitConverter.ToInt64(sizeBuffer, 0);
+
+                if (fileSize < 0)
+                {
+                    Status = $"Invalid file size: {fileSize}";
+                    break;
+                }
 
                 CurrentFileName = fileName;
 
@@ -854,12 +942,13 @@ public partial class MainWindowViewModel : ObservableObject
                 await using var fileStream = File.Create(savePath);
                 byte[] buffer = new byte[BufferSize];
                 long received = 0;
+                bool complete = true;
 
                 while (received < fileSize)
                 {
                     int toRead = (int)Math.Min(buffer.Length, fileSize - received);
                     int bytesRead = await stream.ReadAsync(buffer.AsMemory(0, toRead));
-                    if (bytesRead == 0) break;
+                    if (bytesRead == 0) { complete = false; break; }
 
                     await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
                     received += bytesRead;
@@ -872,6 +961,18 @@ public partial class MainWindowViewModel : ObservableObject
                     {
                         Progress = fileProgress;
                     });
+                }
+
+                if (!complete || received != fileSize)
+                {
+                    fileStream.Close();
+                    if (File.Exists(savePath))
+                        File.Delete(savePath);
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        Status = $"Incomplete transfer: {fileName} was discarded";
+                    });
+                    break;
                 }
 
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>

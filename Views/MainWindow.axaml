@@ -623,19 +623,12 @@
 
             <!-- ── Connection Card ── -->
             <Border Grid.Row="1" Classes="Card">
-              <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="12">
-                <!-- Header row: icon+label in col 0, scan + test buttons in col 1 -->
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+              <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="12">
+                <!-- Header row: icon+label in col 0, scan button in col 1 -->
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                   <PathIcon Data="{StaticResource IconSearch}" VerticalAlignment="Center" Foreground="#06B6D4"/>
                   <TextBlock Grid.Column="1" Text="Connection" Classes="Heading" VerticalAlignment="Center"/>
-                  <Button Grid.Column="2" Command="{Binding TestConnectionCommand}"
-                          Classes="Secondary SmallButton" VerticalAlignment="Center" ToolTip.Tip="Test selected receiver connections">
-                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                      <PathIcon Data="{StaticResource IconPlay}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#10B981"/>
-                      <TextBlock Text="Test" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                  <Button Grid.Column="3" Command="{Binding ScanDevicesCommand}"
+                  <Button Grid.Column="2" Command="{Binding ScanDevicesCommand}"
                           IsEnabled="{Binding !IsScanning}" Classes="Primary SmallButton" VerticalAlignment="Center"
                           ToolTip.Tip="Scan for nearby devices">
                     <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -647,34 +640,60 @@
                   </Button>
                 </Grid>
 
-                <!-- Connection test result -->
-                <TextBlock Grid.Row="1" Text="{Binding ConnectionTestResult}" Classes="Small" IsVisible="{Binding HasConnectionTestResult}" TextWrapping="Wrap"/>
+                <!-- Port row -->
+                <TextBox Grid.Row="1" Text="{Binding Port}" MinWidth="100" MaxWidth="120"
+                         HorizontalAlignment="Left" MaxLength="5"/>
 
-                <!-- Device list with checkboxes -->
-                <Border Grid.Row="2" IsVisible="{Binding HasDiscoveredDevices}" Classes="Inset" Padding="10" MinHeight="60" MaxHeight="250">
-                  <Grid RowDefinitions="*,Auto" RowSpacing="8">
-                    <ListBox ItemsSource="{Binding DiscoveredDevices}" BorderThickness="0" Background="Transparent">
-                      <ListBox.ItemTemplate>
-                        <DataTemplate>
-                          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                            <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center"/>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                              <TextBlock Text="{Binding DisplayName}" FontSize="13"/>
-                              <TextBlock Text="{Binding IpAddress}" Classes="Small"/>
-                            </StackPanel>
-                          </Grid>
-                        </DataTemplate>
-                      </ListBox.ItemTemplate>
-                    </ListBox>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
-                      <Button Command="{Binding SelectAllDevicesCommand}" Classes="Ghost SmallButton" FontSize="11" Padding="8,4">
-                        <TextBlock Text="Select All" FontSize="11"/>
-                      </Button>
-                      <Button Command="{Binding ClearDeviceSelectionCommand}" Classes="Ghost SmallButton" FontSize="11" Padding="8,4">
-                        <TextBlock Text="Clear" FontSize="11"/>
-                      </Button>
+                <!-- Device toolbar -->
+                <Grid Grid.Row="2" ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="8"
+                      IsVisible="{Binding HasDiscoveredDevices}">
+                  <Button Command="{Binding SelectAllDevicesCommand}"
+                          Classes="Secondary SmallButton" VerticalAlignment="Center"
+                          ToolTip.Tip="Select all discovered devices">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                      <PathIcon Data="{StaticResource IconCheck}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#10B981"/>
+                      <TextBlock Text="Select All" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
-                  </Grid>
+                  </Button>
+                  <Button Grid.Column="1" Command="{Binding ClearDeviceSelectionCommand}"
+                          Classes="Secondary SmallButton" VerticalAlignment="Center"
+                          ToolTip.Tip="Clear device selection">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                      <PathIcon Data="{StaticResource IconDelete}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#F43F5E"/>
+                      <TextBlock Text="Clear" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                  <Button Grid.Column="2" Command="{Binding TestConnectionCommand}"
+                          Classes="Secondary SmallButton" VerticalAlignment="Center" ToolTip.Tip="Test connection to selected devices">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                      <PathIcon Data="{StaticResource IconPlay}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#10B981"/>
+                      <TextBlock Text="Test" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                </Grid>
+
+                <!-- Test result -->
+                <TextBlock Grid.Row="3" Text="{Binding ConnectionTestResult}" Classes="Small" IsVisible="{Binding HasConnectionTestResult}" TextWrapping="Wrap"/>
+
+                <!-- Device list (multi-select with checkboxes) -->
+                <Border Grid.Row="4" IsVisible="{Binding HasDiscoveredDevices}" Classes="Inset" Padding="10" MinHeight="60" MaxHeight="180">
+                  <ListBox ItemsSource="{Binding DiscoveredDevices}">
+                    <ListBox.ItemTemplate>
+                      <DataTemplate>
+                        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                          <Border Classes="Inset" CornerRadius="9" Width="32" Height="32">
+                             <PathIcon Data="{StaticResource IconDevice}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#6366F1"/>
+                          </Border>
+                          <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding DisplayName}" FontSize="13"/>
+                            <TextBlock Text="{Binding Port, StringFormat='Port: {0}'}" Classes="Small"/>
+                          </StackPanel>
+                          <CheckBox Grid.Column="2" IsChecked="{Binding IsSelected}" VerticalAlignment="Center"/>
+                        </Grid>
+                      </DataTemplate>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
                 </Border>
               </Grid>
             </Border>
@@ -732,7 +751,7 @@
             </Border>
 
             <!-- ── Send Action ── -->
-            <Grid Grid.Row="3" ColumnDefinitions="*,*" ColumnSpacing="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Grid Grid.Row="3" ColumnDefinitions="*,*" ColumnSpacing="12" HorizontalAlignment="Center">
               <Button Command="{Binding SendFilesCommand}" CommandParameter="{Binding $parent[Window]}"
                       Classes="Primary Send" HorizontalAlignment="Stretch" MinWidth="160" Padding="20,14"
                       CornerRadius="10" ToolTip.Tip="Send files (Enter)"
@@ -803,9 +822,8 @@
                       </Grid>
                     </Border>
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Port number" Classes="Caption" VerticalAlignment="Center"/>
-                    <Border Grid.Row="1" Grid.Column="1" Classes="Inset" Padding="0" HorizontalAlignment="Left" MinWidth="80">
-                      <TextBox Text="{Binding Port}" MaxLength="5" BorderThickness="0" Background="Transparent"
-                               FontWeight="SemiBold" FontSize="13" Padding="10,8"/>
+                    <Border Grid.Row="1" Grid.Column="1" Classes="Inset" Padding="10,8" HorizontalAlignment="Left">
+                      <TextBlock Text="{Binding Port}" FontWeight="SemiBold" FontSize="13"/>
                     </Border>
                 </Grid>
 

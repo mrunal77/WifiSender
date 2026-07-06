@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -19,8 +19,6 @@ using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-
-using System.ComponentModel;
 
 namespace WifiSender.ViewModels;
 
@@ -54,16 +52,8 @@ public partial class MainWindowViewModel : ObservableObject
     private UdpClient? _udpScanner;
     private CancellationTokenSource? _scanCts;
     private const int BufferSize = 1048576;
+    private const int NetworkTimeoutMs = 30000;
     private const int DiscoveryPort = 5556;
-    private const int MinCompressSize = 4096;
-    private static readonly HashSet<string> UncompressibleExtensions = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ".zip", ".gz", ".bz2", ".xz", ".7z", ".rar",
-        ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff", ".tif", ".ico",
-        ".mp4", ".mp3", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm", ".wav", ".flac", ".aac", ".ogg",
-        ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
-    };
-    public string? SelectedFolderRoot { get; set; }
     private readonly FolderPickerOpenOptions _folderPickerOptions = new()
     {
         Title = "Select Download Folder",
@@ -75,6 +65,7 @@ public partial class MainWindowViewModel : ObservableObject
     private string _localIp = "0.0.0.0";
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SendFilesCommand))]
     private string _port = "5555";
 
     partial void OnPortChanged(string value)
@@ -163,6 +154,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     public ObservableCollection<string> SelectedFiles { get; } = new();
     public ObservableCollection<DiscoveredDevice> DiscoveredDevices { get; } = new();
+    public string? SelectedFolderRoot { get; set; }
 
     public bool HasSelectedFiles => SelectedFiles.Count > 0;
     public bool HasDiscoveredDevices => DiscoveredDevices.Count > 0;
@@ -449,7 +441,6 @@ public partial class MainWindowViewModel : ObservableObject
         DiscoveredDevices.Clear();
         Status = "Scanning for nearby devices...";
 
-        _scanCts?.Dispose();
         _scanCts = new CancellationTokenSource();
 
         try
@@ -543,8 +534,6 @@ public partial class MainWindowViewModel : ObservableObject
             IsScanning = false;
             _udpScanner?.Close();
             _udpScanner?.Dispose();
-            _scanCts?.Dispose();
-            _scanCts = null;
         }
     }
 
@@ -653,6 +642,31 @@ public partial class MainWindowViewModel : ObservableObject
         return Path.GetFileName(filePath);
     }
 
+    private static async Task SendPacketsViaSocketAsync(Socket socket, byte[] header, string filePath, CancellationToken ct)
+    {
+        var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var reg = ct.Register(() => tcs.TrySetCanceled(ct));
+
+        var args = new SocketAsyncEventArgs();
+        args.SendPacketsElements =
+        [
+            new SendPacketsElement(header),
+            new SendPacketsElement(filePath)
+        ];
+        args.Completed += (_, e) =>
+        {
+            if (e.SocketError == SocketError.Success)
+                tcs.TrySetResult();
+            else
+                tcs.TrySetException(new SocketException((int)e.SocketError));
+        };
+
+        if (!socket.SendPacketsAsync(args))
+            tcs.TrySetResult();
+
+        await tcs.Task;
+    }
+
     private async Task SendToRecipientAsync(string recipientIp, int port, int recipientIndex, int recipientCount, CancellationToken ct)
     {
         try
@@ -676,19 +690,27 @@ public partial class MainWindowViewModel : ObservableObject
         client.NoDelay = true;
         client.SendBufferSize = BufferSize;
         client.ReceiveBufferSize = BufferSize;
+        client.Client.SendTimeout = NetworkTimeoutMs;
         await client.ConnectAsync(recipientIp, port, ct);
 
         await using var stream = client.GetStream();
 
-        Status = $"[{recipientIndex + 1}/{recipientCount}] Connected to {recipientIp}. Sending files...";
-
         int totalFiles = SelectedFiles.Count;
+        var fileEntries = new (string Path, string Name, long Size)[totalFiles];
         long totalBytes = 0;
 
-        foreach (var f in SelectedFiles)
+        for (int i = 0; i < totalFiles; i++)
         {
-            if (File.Exists(f))
-                totalBytes += new FileInfo(f).Length;
+            string path = SelectedFiles[i];
+            if (!File.Exists(path))
+            {
+                fileEntries[i] = (null!, null!, 0);
+                continue;
+            }
+            var info = new FileInfo(path);
+            long size = info.Length;
+            fileEntries[i] = (path, info.Name, size);
+            totalBytes += size;
         }
 
         if (totalBytes == 0)
@@ -696,106 +718,43 @@ public partial class MainWindowViewModel : ObservableObject
 
         long sentTotal = 0;
         double recipientBaseProgress = (recipientIndex * 100.0) / recipientCount;
+        int lastReportedPct = -1;
 
-        for (int i = 0; i < totalFiles; i++)
+        for (int fileIdx = 0; fileIdx < totalFiles; fileIdx++)
         {
-            string filePath = SelectedFiles[i];
-
-            if (!File.Exists(filePath))
-            {
-                Status = $"[{recipientIndex + 1}/{recipientCount}] File not found: {Path.GetFileName(filePath)}";
-                continue;
-            }
-
             ct.ThrowIfCancellationRequested();
 
-            string fileName = GetSendFileName(filePath);
-            long fileSize = new FileInfo(filePath).Length;
+            var (filePath, _, fileSize) = fileEntries[fileIdx];
+            if (filePath == null)
+                continue;
 
-            CurrentFileName = fileName;
+            string sendName = GetSendFileName(filePath);
+            CurrentFileName = sendName;
 
-            byte[] fileNameBytes = Encoding.UTF8.GetBytes(fileName);
-            byte[] fileSizeBytes = BitConverter.GetBytes(fileSize);
-
-            string ext = Path.GetExtension(filePath);
-            bool shouldCompress = fileSize >= MinCompressSize && !UncompressibleExtensions.Contains(ext);
-
-            byte[]? compressedData = null;
-
-            if (shouldCompress)
-            {
-                using (var ms = new MemoryStream())
-                {
-                    await using (var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan))
-                    await using (var deflate = new DeflateStream(ms, CompressionLevel.Fastest, leaveOpen: true))
-                    {
-                        byte[] buffer = new byte[BufferSize];
-                        int bytesRead;
-                        long readSoFar = 0;
-                        while ((bytesRead = await fileStream.ReadAsync(buffer, ct)) > 0)
-                        {
-                            ct.ThrowIfCancellationRequested();
-                            await deflate.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
-                            readSoFar += bytesRead;
-                            sentTotal += bytesRead;
-
-                            double fileProgress = (readSoFar * 100.0) / fileSize;
-                            double totalProgress = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);
-                            Progress = totalProgress;
-                            CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(readSoFar)} / {FormatFileSize(fileSize)}";
-                            Status = $"[{recipientIndex + 1}/{recipientCount}] Compressing {fileName} ({fileProgress:F1}%)";
-                        }
-                    }
-                    compressedData = ms.ToArray();
-                }
-            }
-
-            long wireSize = compressedData != null ? compressedData.Length : fileSize;
-            byte compressionFlag = (byte)(compressedData != null ? 1 : 0);
-
-            byte[] wireSizeBytes = BitConverter.GetBytes(wireSize);
-            byte[] header = new byte[4 + fileNameBytes.Length + 8 + 1 + 8];
+            byte[] fileNameBytes = Encoding.UTF8.GetBytes(sendName);
+            byte[] header = new byte[4 + fileNameBytes.Length + 8];
             BitConverter.GetBytes(fileNameBytes.Length).CopyTo(header, 0);
             fileNameBytes.CopyTo(header, 4);
-            fileSizeBytes.CopyTo(header, 4 + fileNameBytes.Length);
-            header[4 + fileNameBytes.Length + 8] = compressionFlag;
-            wireSizeBytes.CopyTo(header, 4 + fileNameBytes.Length + 8 + 1);
+            BitConverter.GetBytes(fileSize).CopyTo(header, 4 + fileNameBytes.Length);
 
             await stream.WriteAsync(header, ct);
 
-            if (compressedData != null)
-            {
-                await stream.WriteAsync(compressedData, ct);
-            }
-            else
-            {
-                await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                byte[] buffer = new byte[BufferSize];
-                int bytesRead;
-                long readSoFar = 0;
-                while ((bytesRead = await fileStream.ReadAsync(buffer, ct)) > 0)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    await stream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
-                    readSoFar += bytesRead;
-                    sentTotal += bytesRead;
+            await SendPacketsViaSocketAsync(client.Client, [], filePath, ct);
+            sentTotal += fileSize;
 
-                    double fileProgress = (readSoFar * 100.0) / fileSize;
-                    double totalProgress = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);
-                    Progress = totalProgress;
-                    CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(readSoFar)} / {FormatFileSize(fileSize)}";
-                    Status = $"[{recipientIndex + 1}/{recipientCount}] Sending {fileName} ({fileProgress:F1}%)";
-                }
+            int totalPct = (int)(recipientBaseProgress + (sentTotal * 100.0 / totalBytes / recipientCount));
+            if (totalPct != lastReportedPct)
+            {
+                lastReportedPct = totalPct;
+                Progress = totalPct;
+                CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(fileSize)} / {FormatFileSize(fileSize)}";
             }
-
-            double totalProgressDone = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);
-            Progress = totalProgressDone;
-            CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(fileSize)} / {FormatFileSize(fileSize)}";
-            Status = $"[{recipientIndex + 1}/{recipientCount}] Sent {i + 1}/{totalFiles}: {fileName} to {recipientIp}";
         }
 
         byte[] endMarker = BitConverter.GetBytes((int)0);
         await stream.WriteAsync(endMarker, ct);
+        await stream.FlushAsync(ct);
+        client.Client.Shutdown(SocketShutdown.Send);
     }
 
     [RelayCommand]
@@ -819,7 +778,6 @@ public partial class MainWindowViewModel : ObservableObject
         IsReceiving = true;
         Status = $"Listening on {LocalIp}:{port} (broadcasting to network)...";
         Progress = 0;
-        _cts?.Dispose();
         _cts = new CancellationTokenSource();
 
         _ = RunDiscoveryServiceAsync(port);
@@ -845,7 +803,6 @@ public partial class MainWindowViewModel : ObservableObject
         }
         finally
         {
-            _server?.Stop();
             IsReceiving = false;
         }
     }
@@ -931,6 +888,7 @@ public partial class MainWindowViewModel : ObservableObject
             client.NoDelay = true;
             client.ReceiveBufferSize = BufferSize;
             client.SendBufferSize = BufferSize;
+            client.Client.ReceiveTimeout = NetworkTimeoutMs;
 
             var remoteEndPoint = (IPEndPoint?)client.Client.RemoteEndPoint;
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
@@ -952,21 +910,45 @@ public partial class MainWindowViewModel : ObservableObject
                 if (fileNameLength == 0)
                     break;
 
+                if (fileNameLength < 0 || fileNameLength > 4096)
+                {
+                    Status = $"Invalid file name length: {fileNameLength}";
+                    break;
+                }
+
                 byte[] fileNameBuffer = new byte[fileNameLength];
-                await ReadExactAsync(stream, fileNameBuffer, ct);
+                int fileNameRead = await ReadExactAsync(stream, fileNameBuffer, ct);
+                if (fileNameRead != fileNameLength)
+                {
+                    Status = "Connection closed while reading file name";
+                    break;
+                }
+
                 string fileName = Encoding.UTF8.GetString(fileNameBuffer);
 
+                string[] pathParts = fileName.Split(new[] { '/', '\\' }, StringSplitOptions.None);
+                for (int i = 0; i < pathParts.Length; i++)
+                {
+                    foreach (char c in Path.GetInvalidFileNameChars())
+                        pathParts[i] = pathParts[i].Replace(c, '_');
+                }
+                fileName = string.Join(Path.DirectorySeparatorChar, pathParts);
+
                 byte[] sizeBuffer = new byte[8];
-                await ReadExactAsync(stream, sizeBuffer, ct);
+                int sizeRead = await ReadExactAsync(stream, sizeBuffer, ct);
+                if (sizeRead != 8)
+                {
+                    Status = "Connection closed while reading file size";
+                    break;
+                }
+
                 long fileSize = BitConverter.ToInt64(sizeBuffer, 0);
 
-                byte[] flagBuffer = new byte[1];
-                await ReadExactAsync(stream, flagBuffer, ct);
-                bool isCompressed = flagBuffer[0] == 1;
-
-                byte[] wireSizeBuffer = new byte[8];
-                await ReadExactAsync(stream, wireSizeBuffer, ct);
-                long wireSize = BitConverter.ToInt64(wireSizeBuffer, 0);
+                if (fileSize < 0)
+                {
+                    Status = $"Invalid file size: {fileSize}";
+                    break;
+                }
 
                 CurrentFileName = fileName;
 
@@ -991,58 +973,40 @@ public partial class MainWindowViewModel : ObservableObject
                     Status = $"Receiving: {fileName} ({FormatFileSize(fileSize)})";
                 });
 
-                if (isCompressed)
+                await using var fileStream = new FileStream(savePath, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, FileOptions.Asynchronous);
+                byte[] buffer = new byte[BufferSize];
+                long received = 0;
+                bool complete = true;
+
+                while (received < fileSize)
                 {
-                    byte[] compressedData = new byte[wireSize];
-                    await ReadExactAsync(stream, compressedData, ct);
+                    int toRead = (int)Math.Min(buffer.Length, fileSize - received);
+                    int bytesRead = await stream.ReadAsync(buffer.AsMemory(0, toRead));
+                    if (bytesRead == 0) { complete = false; break; }
 
-                    await using var fileStream = new FileStream(savePath, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, FileOptions.Asynchronous);
-                    using var ms = new MemoryStream(compressedData);
-                    await using var deflate = new DeflateStream(ms, CompressionMode.Decompress);
-                    byte[] buffer = new byte[BufferSize];
-                    int bytesRead;
-                    long received = 0;
-                    while ((bytesRead = await deflate.ReadAsync(buffer, ct)) > 0)
+                    await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                    received += bytesRead;
+                    totalReceived += bytesRead;
+
+                    double fileProgress = (received * 100.0) / fileSize;
+                    CurrentFileProgress = $"{FormatFileSize(received)} / {FormatFileSize(fileSize)}";
+
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
-                        received += bytesRead;
-                        totalReceived += bytesRead;
-
-                        double fileProgress = (received * 100.0) / fileSize;
-                        CurrentFileProgress = $"{FormatFileSize(received)} / {FormatFileSize(fileSize)}";
-
-                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            Progress = fileProgress;
-                        });
-                    }
+                        Progress = fileProgress;
+                    });
                 }
-                else
+
+                if (!complete || received != fileSize)
                 {
-                    await using var fileStream = new FileStream(savePath, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, FileOptions.Asynchronous);
-                    byte[] buffer = new byte[BufferSize];
-                    long remaining = wireSize;
-                    long received = 0;
-                    while (remaining > 0)
+                    fileStream.Close();
+                    if (File.Exists(savePath))
+                        File.Delete(savePath);
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                     {
-                        ct.ThrowIfCancellationRequested();
-                        int toRead = (int)Math.Min(buffer.Length, remaining);
-                        int bytesRead = await stream.ReadAsync(buffer.AsMemory(0, toRead), ct);
-                        if (bytesRead == 0) break;
-
-                        await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
-                        received += bytesRead;
-                        totalReceived += bytesRead;
-                        remaining -= bytesRead;
-
-                        double fileProgress = (received * 100.0) / fileSize;
-                        CurrentFileProgress = $"{FormatFileSize(received)} / {FormatFileSize(fileSize)}";
-
-                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            Progress = fileProgress;
-                        });
-                    }
+                        Status = $"Incomplete transfer: {fileName} was discarded";
+                    });
+                    break;
                 }
 
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
@@ -1097,10 +1061,6 @@ public partial class MainWindowViewModel : ObservableObject
     {
         _cts?.Cancel();
         _scanCts?.Cancel();
-        _cts?.Dispose();
-        _cts = null;
-        _scanCts?.Dispose();
-        _scanCts = null;
         _server?.Stop();
         IsReceiving = false;
         IsScanning = false;
@@ -1123,8 +1083,8 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task TestConnection()
     {
-        var devices = GetSelectedDevices();
-        if (devices.Count == 0)
+        var selectedDevices = GetSelectedDevices();
+        if (selectedDevices.Count == 0)
         {
             ConnectionTestResult = "Select one or more receiver devices";
             return;
@@ -1133,27 +1093,25 @@ public partial class MainWindowViewModel : ObservableObject
         ConnectionTestResult = "Testing receivers...";
 
         var results = new List<string>();
-        foreach (var device in devices)
+        foreach (var device in selectedDevices)
         {
-            string ip = device.IpAddress;
-            int port = int.Parse(device.Port);
             try
             {
                 using var client = new TcpClient();
-                var connectTask = client.ConnectAsync(ip, port);
+                var connectTask = client.ConnectAsync(device.IpAddress, int.Parse(device.Port));
 
                 if (await Task.WhenAny(connectTask, Task.Delay(3000)) == connectTask)
                 {
-                    results.Add($"OK - connected to {ip}:{port}");
+                    results.Add($"OK - connected to {device.DisplayName}");
                 }
                 else
                 {
-                    results.Add($"Timeout - port not open on {ip}:{port}");
+                    results.Add($"Timeout - {device.DisplayName}");
                 }
             }
             catch (Exception ex)
             {
-                results.Add($"Failed - {ip}:{port}: {ex.Message}");
+                results.Add($"Failed - {device.DisplayName}: {ex.Message}");
             }
         }
 

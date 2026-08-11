@@ -79,7 +79,7 @@
       </Grid>
     </Border>
 
-    <Border Opacity="{Binding ContentOpacity}" Padding="0" Background="Transparent">
+    <Border Opacity="{Binding ContentOpacity}" Padding="0" Background="Transparent" Classes="ContentArea">
       <Border.Transitions><Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.2"/></Transitions></Border.Transitions>
 
     <TabControl x:Name="MainTabControl" SelectedIndex="{Binding SelectedTabIndex}" Margin="24,18,0,24">
@@ -152,7 +152,7 @@
                 <TextBlock Grid.Row="3" Text="{Binding ConnectionTestResult}" Classes="Small" IsVisible="{Binding HasConnectionTestResult}" TextWrapping="Wrap"/>
 
                 <Border Grid.Row="4" IsVisible="{Binding HasDiscoveredDevices}" Classes="Inset" Padding="10" MinHeight="60" MaxHeight="180">
-                  <ListBox ItemsSource="{Binding DiscoveredDevices}" SelectedItem="{Binding SelectedDevice}">
+                  <ListBox ItemsSource="{Binding DiscoveredDevices}" SelectedItem="{Binding SelectedDevice, Mode=TwoWay}">
                     <ListBox.ItemTemplate>
                       <DataTemplate>
                         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">

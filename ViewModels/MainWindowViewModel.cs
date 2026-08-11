@@ -492,6 +492,14 @@ public partial class MainWindowViewModel : ObservableObject
     {
         try
         {
+            await CheckFirewallAsync();
+
+            if (!IsFirewallWarningVisible)
+            {
+                Status = "Firewall is already configured correctly";
+                return;
+            }
+
             await _firewallService.FixFirewallAsync();
             Status = "Firewall configured successfully";
             await CheckFirewallAsync();

@@ -138,6 +138,17 @@
   <Style Selector="Button.Secondary:pressed /template/ ContentPresenter">
     <Setter Property="Background" Value="{StaticResource Color.Border}"/>
   </Style>
+  <Style Selector=":dark Button.Secondary">
+    <Setter Property="Background" Value="{StaticResource Color.DarkSurface}"/>
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextPrimary}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Color.DarkBorder}"/>
+  </Style>
+  <Style Selector=":dark Button.Secondary:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource Color.DarkSurfaceVariant}"/>
+  </Style>
+  <Style Selector=":dark Button.Secondary:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource Color.DarkBorder}"/>
+  </Style>
 
   <Style Selector="Button.Ghost">
     <Setter Property="Background" Value="Transparent"/>
@@ -235,6 +246,13 @@
   </Style>
   <Style Selector=":dark ListBoxItem:selected">
     <Setter Property="Background" Value="#1A3A5C"/>
+  </Style>
+
+  <Style Selector="ListBoxItem:selected TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource Color.TextPrimary}"/>
+  </Style>
+  <Style Selector=":dark ListBoxItem:selected TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextPrimary}"/>
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════ -->
@@ -358,6 +376,129 @@
   <!-- ═══════════════════════════════════════════════════════════════ -->
   <Style Selector="ScrollViewer">
     <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector=":dark ScrollViewer">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- LISTBOX                                                         -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <Style Selector="ListBox">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <Style Selector=":dark ListBox">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- TAB CONTROL                                                     -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <Style Selector="TabControl">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <Style Selector=":dark TabControl">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+
+  <Style Selector="TabItem">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="12,8"/>
+    <Setter Property="Foreground" Value="{StaticResource Color.TextSecondary}"/>
+  </Style>
+  <Style Selector=":dark TabItem">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextSecondary}"/>
+  </Style>
+
+  <Style Selector="TabItem:selected">
+    <Setter Property="Foreground" Value="{StaticResource Color.TextPrimary}"/>
+  </Style>
+  <Style Selector=":dark TabItem:selected">
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextPrimary}"/>
+  </Style>
+
+  <Style Selector="TabItem:pointerover">
+    <Setter Property="Foreground" Value="{StaticResource Color.TextPrimary}"/>
+  </Style>
+  <Style Selector=":dark TabItem:pointerover">
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextPrimary}"/>
+  </Style>
+
+  <Style Selector="TabItem TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource Color.TextSecondary}"/>
+  </Style>
+  <Style Selector=":dark TabItem TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextSecondary}"/>
+  </Style>
+
+  <Style Selector="TabItem /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector=":dark TabItem /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+
+  <Style Selector="TabControl /template/ Panel">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector=":dark TabControl /template/ Panel">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+
+  <Style Selector="TabControl /template/ Border">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <Style Selector=":dark TabControl /template/ Border">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+
+  <Style Selector="TabControl /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector=":dark TabControl /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+
+  <Style Selector="Border.Card TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource Color.TextPrimary}"/>
+  </Style>
+  <Style Selector=":dark Border.Card TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextPrimary}"/>
+  </Style>
+
+  <Style Selector="Border.Inset TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource Color.TextPrimary}"/>
+  </Style>
+  <Style Selector=":dark Border.Inset TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextPrimary}"/>
+  </Style>
+
+  <Style Selector="Border.Warning TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource Color.TextPrimary}"/>
+  </Style>
+  <Style Selector=":dark Border.Warning TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextPrimary}"/>
+  </Style>
+
+  <Style Selector="Border.WarningIcon TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource Color.OnPrimary}"/>
+  </Style>
+  <Style Selector=":dark Border.WarningIcon TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource Color.OnPrimary}"/>
+  </Style>
+
+  <Style Selector="Border.ContentArea">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector=":dark Border.ContentArea">
+    <Setter Property="Background" Value="{StaticResource Color.DarkBackground}"/>
   </Style>
 
   <!-- ═══════════════════════════════════════════════════════════════ -->

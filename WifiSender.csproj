@@ -9,9 +9,7 @@
     <ApplicationIcon>Assets/appicon.ico</ApplicationIcon>
     <AssemblyName>WifiSender</AssemblyName>
     <Version>1.0.0</Version>
-    <Authors>Mrunal Meshram</Authors>
-    <Company>Mrunal Meshram</Company>
-    <Copyright>Copyright (c) 2024 Mrunal Meshram</Copyright>
+    <Authors>WifiSender</Authors>
     <Product>WifiSender</Product>
     <Description>Cross-platform file transfer over WiFi or LAN</Description>
   </PropertyGroup>
@@ -19,6 +17,7 @@
   <ItemGroup>
     <Folder Include="Models/" />
     <AvaloniaResource Include="Assets/**" />
+    <AvaloniaResource Include="DesignSystem/**" />
     <EmbeddedResource Include="Assets/appicon.ico" />
   </ItemGroup>
 

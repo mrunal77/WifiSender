@@ -1,0 +1,60 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:local="using:WifiSender.DesignSystem">
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- COLORS                                                          -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <SolidColorBrush x:Key="Color.Primary" Color="#007AFF"/>
+  <SolidColorBrush x:Key="Color.PrimaryContainer" Color="#E3F2FD"/>
+  <SolidColorBrush x:Key="Color.OnPrimary" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="Color.Background" Color="#F5F5F7"/>
+  <SolidColorBrush x:Key="Color.Surface" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="Color.SurfaceVariant" Color="#F0F0F5"/>
+  <SolidColorBrush x:Key="Color.SurfaceElevated" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="Color.TextPrimary" Color="#1D1D1F"/>
+  <SolidColorBrush x:Key="Color.TextSecondary" Color="#6E6E73"/>
+  <SolidColorBrush x:Key="Color.TextTertiary" Color="#AEAEB2"/>
+  <SolidColorBrush x:Key="Color.TextOnPrimary" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="Color.Success" Color="#34C759"/>
+  <SolidColorBrush x:Key="Color.SuccessContainer" Color="#E8F8ED"/>
+  <SolidColorBrush x:Key="Color.Warning" Color="#FF9500"/>
+  <SolidColorBrush x:Key="Color.WarningContainer" Color="#FFF4E5"/>
+  <SolidColorBrush x:Key="Color.Error" Color="#FF3B30"/>
+  <SolidColorBrush x:Key="Color.ErrorContainer" Color="#FFE8E6"/>
+  <SolidColorBrush x:Key="Color.Info" Color="#5AC8FA"/>
+  <SolidColorBrush x:Key="Color.InfoContainer" Color="#E5F6FF"/>
+  <SolidColorBrush x:Key="Color.Border" Color="#E5E5EA"/>
+  <SolidColorBrush x:Key="Color.BorderStrong" Color="#D1D1D6"/>
+  <SolidColorBrush x:Key="Color.DarkBackground" Color="#000000"/>
+  <SolidColorBrush x:Key="Color.DarkSurface" Color="#1C1C1E"/>
+  <SolidColorBrush x:Key="Color.DarkSurfaceVariant" Color="#2C2C2E"/>
+  <SolidColorBrush x:Key="Color.DarkSurfaceElevated" Color="#2C2C2E"/>
+  <SolidColorBrush x:Key="Color.DarkTextPrimary" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="Color.DarkTextSecondary" Color="#EBEBF5"/>
+  <SolidColorBrush x:Key="Color.DarkTextTertiary" Color="#98989D"/>
+  <SolidColorBrush x:Key="Color.DarkBorder" Color="#38383A"/>
+  <SolidColorBrush x:Key="Color.DarkBorderStrong" Color="#48484A"/>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SPACING                                                         -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <x:Double x:Key="Spacing.XS">4</x:Double>
+  <x:Double x:Key="Spacing.SM">8</x:Double>
+  <x:Double x:Key="Spacing.MD">12</x:Double>
+  <x:Double x:Key="Spacing.LG">16</x:Double>
+  <x:Double x:Key="Spacing.XL">20</x:Double>
+  <x:Double x:Key="Spacing.XXL">24</x:Double>
+  <x:Double x:Key="Spacing.XXXL">32</x:Double>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- RADIUS                                                          -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <x:Double x:Key="Radius.XS">4</x:Double>
+  <x:Double x:Key="Radius.SM">8</x:Double>
+  <x:Double x:Key="Radius.MD">12</x:Double>
+  <x:Double x:Key="Radius.LG">16</x:Double>
+  <x:Double x:Key="Radius.XL">20</x:Double>
+  <x:Double x:Key="Radius.Pill">999</x:Double>
+
+</ResourceDictionary>

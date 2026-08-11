@@ -1,0 +1,396 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- TEXTBLOCK                                                      -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <Style Selector="TextBlock">
+    <Setter Property="FontFamily" Value="Inter"/>
+    <Setter Property="Foreground" Value="{StaticResource Color.TextPrimary}"/>
+  </Style>
+  <Style Selector=":dark TextBlock">
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextPrimary}"/>
+  </Style>
+
+  <Style Selector="TextBlock.Heading">
+    <Setter Property="FontSize" Value="16"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="LetterSpacing" Value="0.2"/>
+  </Style>
+  <Style Selector=":dark TextBlock.Heading">
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextPrimary}"/>
+  </Style>
+  <Style Selector=":light TextBlock.Heading">
+    <Setter Property="Foreground" Value="{StaticResource Color.TextPrimary}"/>
+  </Style>
+
+  <Style Selector="TextBlock.Caption">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontWeight" Value="Medium"/>
+  </Style>
+  <Style Selector=":dark TextBlock.Caption">
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextSecondary}"/>
+  </Style>
+  <Style Selector=":light TextBlock.Caption">
+    <Setter Property="Foreground" Value="{StaticResource Color.TextSecondary}"/>
+  </Style>
+
+  <Style Selector="TextBlock.Small">
+    <Setter Property="FontSize" Value="12"/>
+  </Style>
+  <Style Selector=":dark TextBlock.Small">
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextSecondary}"/>
+  </Style>
+  <Style Selector=":light TextBlock.Small">
+    <Setter Property="Foreground" Value="{StaticResource Color.TextSecondary}"/>
+  </Style>
+
+  <Style Selector="TextBlock.HeroTitle">
+    <Setter Property="FontSize" Value="20"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style Selector=":dark TextBlock.HeroTitle">
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextPrimary}"/>
+  </Style>
+  <Style Selector=":light TextBlock.HeroTitle">
+    <Setter Property="Foreground" Value="{StaticResource Color.TextPrimary}"/>
+  </Style>
+
+  <Style Selector="TextBlock.HeroSubtitle">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontWeight" Value="Medium"/>
+  </Style>
+  <Style Selector=":dark TextBlock.HeroSubtitle">
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextSecondary}"/>
+  </Style>
+  <Style Selector=":light TextBlock.HeroSubtitle">
+    <Setter Property="Foreground" Value="{StaticResource Color.TextSecondary}"/>
+  </Style>
+
+  <Style Selector="TextBlock.PillLabel">
+    <Setter Property="FontSize" Value="10"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style Selector=":dark TextBlock.PillLabel">
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextSecondary}"/>
+  </Style>
+  <Style Selector=":light TextBlock.PillLabel">
+    <Setter Property="Foreground" Value="{StaticResource Color.TextSecondary}"/>
+  </Style>
+
+  <Style Selector="TextBlock.PillValue">
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+  </Style>
+  <Style Selector=":dark TextBlock.PillValue">
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextPrimary}"/>
+  </Style>
+  <Style Selector=":light TextBlock.PillValue">
+    <Setter Property="Foreground" Value="{StaticResource Color.TextPrimary}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- BUTTONS                                                         -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <Style Selector="Button">
+    <Setter Property="FontFamily" Value="Inter"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Padding" Value="16,10"/>
+    <Setter Property="CornerRadius" Value="12"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="MinWidth" Value="80"/>
+    <Setter Property="Height" Value="40"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <DoubleTransition Property="Opacity" Duration="0:0:0.15"/>
+        <BrushTransition Property="Background" Duration="0:0:0.18"/>
+        <ThicknessTransition Property="BorderThickness" Duration="0:0:0.15"/>
+      </Transitions>
+    </Setter>
+  </Style>
+
+  <Style Selector="Button:disabled">
+    <Setter Property="Opacity" Value="0.4"/>
+  </Style>
+
+  <Style Selector="Button.Primary">
+    <Setter Property="Background" Value="{StaticResource Color.Primary}"/>
+    <Setter Property="Foreground" Value="{StaticResource Color.OnPrimary}"/>
+  </Style>
+  <Style Selector="Button.Primary:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#0056CC"/>
+  </Style>
+  <Style Selector="Button.Primary:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="#004499"/>
+  </Style>
+
+  <Style Selector="Button.Secondary">
+    <Setter Property="Background" Value="{StaticResource Color.Surface}"/>
+    <Setter Property="Foreground" Value="{StaticResource Color.TextPrimary}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Color.BorderStrong}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+  </Style>
+  <Style Selector="Button.Secondary:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource Color.SurfaceVariant}"/>
+  </Style>
+  <Style Selector="Button.Secondary:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource Color.Border}"/>
+  </Style>
+
+  <Style Selector="Button.Ghost">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{StaticResource Color.TextSecondary}"/>
+  </Style>
+  <Style Selector="Button.Ghost:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource Color.SurfaceVariant}"/>
+  </Style>
+
+  <Style Selector="Button.Destructive">
+    <Setter Property="Background" Value="{StaticResource Color.Error}"/>
+    <Setter Property="Foreground" Value="{StaticResource Color.OnPrimary}"/>
+  </Style>
+  <Style Selector="Button.Destructive:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#E02D24"/>
+  </Style>
+
+  <Style Selector="Button.SmallButton">
+    <Setter Property="MinWidth" Value="72"/>
+    <Setter Property="Height" Value="34"/>
+    <Setter Property="Padding" Value="12,6"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="CornerRadius" Value="10"/>
+  </Style>
+
+  <Style Selector="Button.Send">
+    <Setter Property="Background" Value="{StaticResource Color.Primary}"/>
+    <Setter Property="Foreground" Value="{StaticResource Color.OnPrimary}"/>
+  </Style>
+  <Style Selector="Button.Send:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#0056CC"/>
+  </Style>
+
+  <Style Selector="Button.Receive">
+    <Setter Property="Background" Value="{StaticResource Color.Success}"/>
+    <Setter Property="Foreground" Value="{StaticResource Color.OnPrimary}"/>
+  </Style>
+  <Style Selector="Button.Receive:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#2DB84D"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- TEXTBOX                                                         -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <Style Selector="TextBox">
+    <Setter Property="FontFamily" Value="Inter"/>
+    <Setter Property="FontSize" Value="13"/>
+    <Setter Property="Padding" Value="12,10"/>
+    <Setter Property="CornerRadius" Value="12"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="Background" Value="{StaticResource Color.Surface}"/>
+    <Setter Property="Foreground" Value="{StaticResource Color.TextPrimary}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Color.Border}"/>
+  </Style>
+  <Style Selector="TextBox:focus">
+    <Setter Property="BorderBrush" Value="{StaticResource Color.Primary}"/>
+    <Setter Property="BorderThickness" Value="2"/>
+  </Style>
+  <Style Selector="TextBox:pointerover">
+    <Setter Property="BorderBrush" Value="{StaticResource Color.BorderStrong}"/>
+  </Style>
+  <Style Selector=":dark TextBox">
+    <Setter Property="Background" Value="{StaticResource Color.DarkSurface}"/>
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextPrimary}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Color.DarkBorder}"/>
+  </Style>
+  <Style Selector=":dark TextBox:focus">
+    <Setter Property="BorderBrush" Value="{StaticResource Color.Primary}"/>
+  </Style>
+  <Style Selector=":dark TextBox:pointerover">
+    <Setter Property="BorderBrush" Value="{StaticResource Color.DarkBorderStrong}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- LISTBOX                                                         -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <Style Selector="ListBox">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <Style Selector="ListBoxItem">
+    <Setter Property="Padding" Value="10,8"/>
+    <Setter Property="Margin" Value="0,2"/>
+    <Setter Property="CornerRadius" Value="10"/>
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+  <Style Selector="ListBoxItem:pointerover">
+    <Setter Property="Background" Value="{StaticResource Color.SurfaceVariant}"/>
+  </Style>
+  <Style Selector="ListBoxItem:selected">
+    <Setter Property="Background" Value="{StaticResource Color.PrimaryContainer}"/>
+  </Style>
+  <Style Selector=":dark ListBoxItem:pointerover">
+    <Setter Property="Background" Value="{StaticResource Color.DarkSurfaceVariant}"/>
+  </Style>
+  <Style Selector=":dark ListBoxItem:selected">
+    <Setter Property="Background" Value="#1A3A5C"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- PROGRESS BAR                                                    -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <Style Selector="ProgressBar">
+    <Setter Property="CornerRadius" Value="999"/>
+    <Setter Property="Height" Value="8"/>
+    <Setter Property="Background" Value="{StaticResource Color.SurfaceVariant}"/>
+    <Setter Property="Foreground" Value="{StaticResource Color.Primary}"/>
+  </Style>
+  <Style Selector=":dark ProgressBar">
+    <Setter Property="Background" Value="{StaticResource Color.DarkSurfaceVariant}"/>
+    <Setter Property="Foreground" Value="{StaticResource Color.Primary}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SEPARATOR                                                       -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <Style Selector="Separator">
+    <Setter Property="Height" Value="1"/>
+    <Setter Property="Background" Value="{StaticResource Color.Border}"/>
+    <Setter Property="Margin" Value="0"/>
+  </Style>
+  <Style Selector=":dark Separator">
+    <Setter Property="Background" Value="{StaticResource Color.DarkBorder}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- BORDERS                                                         -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <Style Selector="Border.Card">
+    <Setter Property="Background" Value="{StaticResource Color.Surface}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Color.Border}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="16"/>
+    <Setter Property="Padding" Value="20"/>
+    <Setter Property="Transitions">
+      <Transitions>
+        <BrushTransition Property="Background" Duration="0:0:0.25"/>
+        <BrushTransition Property="BorderBrush" Duration="0:0:0.25"/>
+      </Transitions>
+    </Setter>
+  </Style>
+  <Style Selector=":dark Border.Card">
+    <Setter Property="Background" Value="{StaticResource Color.DarkSurface}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Color.DarkBorder}"/>
+  </Style>
+
+  <Style Selector="Border.Inset">
+    <Setter Property="Background" Value="{StaticResource Color.SurfaceVariant}"/>
+    <Setter Property="CornerRadius" Value="12"/>
+    <Setter Property="Padding" Value="12"/>
+  </Style>
+  <Style Selector=":dark Border.Inset">
+    <Setter Property="Background" Value="{StaticResource Color.DarkSurfaceVariant}"/>
+  </Style>
+
+  <Style Selector="Border.Pill">
+    <Setter Property="Background" Value="{StaticResource Color.Surface}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Color.Border}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="999"/>
+    <Setter Property="Padding" Value="10,8"/>
+  </Style>
+  <Style Selector=":dark Border.Pill">
+    <Setter Property="Background" Value="{StaticResource Color.DarkSurface}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Color.DarkBorder}"/>
+  </Style>
+
+  <Style Selector="Border.Warning">
+    <Setter Property="Background" Value="{StaticResource Color.WarningContainer}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Color.Warning}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="12"/>
+    <Setter Property="Padding" Value="14,12"/>
+  </Style>
+  <Style Selector=":dark Border.Warning">
+    <Setter Property="Background" Value="#3D2E0A"/>
+    <Setter Property="BorderBrush" Value="#B87A1A"/>
+  </Style>
+
+  <Style Selector="Border.WarningIcon">
+    <Setter Property="Background" Value="{StaticResource Color.Warning}"/>
+    <Setter Property="CornerRadius" Value="999"/>
+    <Setter Property="Width" Value="28"/>
+    <Setter Property="Height" Value="28"/>
+  </Style>
+  <Style Selector=":dark Border.WarningIcon">
+    <Setter Property="Background" Value="#B87A1A"/>
+  </Style>
+
+  <Style Selector="Border.StatusDot">
+    <Setter Property="Background" Value="{StaticResource Color.Success}"/>
+    <Setter Property="CornerRadius" Value="999"/>
+    <Setter Property="Width" Value="7"/>
+    <Setter Property="Height" Value="7"/>
+  </Style>
+
+  <Style Selector="Border.Logo">
+    <Setter Property="Background" Value="{StaticResource Color.Primary}"/>
+    <Setter Property="CornerRadius" Value="14"/>
+    <Setter Property="Width" Value="42"/>
+    <Setter Property="Height" Value="42"/>
+    <Setter Property="Padding" Value="12"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- PATH ICON                                                       -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <Style Selector="PathIcon">
+    <Setter Property="Width" Value="16"/>
+    <Setter Property="Height" Value="16"/>
+  </Style>
+  <Style Selector=":dark PathIcon">
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextSecondary}"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- SCROLL VIEWER                                                   -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <Style Selector="ScrollViewer">
+    <Setter Property="Background" Value="Transparent"/>
+  </Style>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- DARK THEME GLOBAL OVERRIDES                                     -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <Style Selector=":dark Window">
+    <Setter Property="Background" Value="{StaticResource Color.DarkBackground}"/>
+  </Style>
+  <Style Selector=":dark Button">
+    <Setter Property="Background" Value="{StaticResource Color.DarkSurface}"/>
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextPrimary}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource Color.DarkBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+  </Style>
+  <Style Selector=":dark Button:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource Color.DarkSurfaceVariant}"/>
+  </Style>
+  <Style Selector=":dark Button:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource Color.DarkBorder}"/>
+  </Style>
+  <Style Selector=":dark Button.Primary">
+    <Setter Property="Background" Value="#0A5FFF"/>
+    <Setter Property="Foreground" Value="#FFFFFF"/>
+  </Style>
+  <Style Selector=":dark Button.Primary:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="#1A6FFF"/>
+  </Style>
+  <Style Selector=":dark Button.Ghost">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{StaticResource Color.DarkTextSecondary}"/>
+  </Style>
+  <Style Selector=":dark Button.Ghost:pointerover /template/ ContentPresenter">
+    <Setter Property="Background" Value="{StaticResource Color.DarkSurfaceVariant}"/>
+  </Style>
+
+</Styles>

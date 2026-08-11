@@ -1,67 +1,29 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Net.NetworkInformation;
-using System.Net.Sockets;
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
-using Avalonia.Platform.Storage;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using WifiSender.Services;
 
 namespace WifiSender.ViewModels;
 
-public class DiscoveredDevice : INotifyPropertyChanged
-{
-    public string IpAddress { get; set; } = "";
-    public string Port { get; set; } = "";
-    public string DeviceName { get; set; } = "";
-    public string DisplayName => string.IsNullOrEmpty(DeviceName) ? $"{IpAddress}:{Port}" : $"{DeviceName} ({IpAddress})";
-
-    private bool _isSelected;
-    public bool IsSelected
-    {
-        get => _isSelected;
-        set
-        {
-            if (_isSelected == value) return;
-            _isSelected = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
-        }
-    }
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-}
-
 public partial class MainWindowViewModel : ObservableObject
 {
-    private TcpListener? _server;
-    private CancellationTokenSource? _cts;
-    private CancellationTokenSource? _sendCts;
-    private UdpClient? _udpScanner;
-    private CancellationTokenSource? _scanCts;
-    private const int BufferSize = 1048576;
-    private const int NetworkTimeoutMs = 30000;
-    private const int DiscoveryPort = 5556;
-    private long _sendTotalBytes;
-    private long _sendCompletedBytes;
-    private readonly object _sendProgressLock = new();
-    private readonly FolderPickerOpenOptions _folderPickerOptions = new()
-    {
-        Title = "Select Download Folder",
-        AllowMultiple = false
-    };
+    private readonly IDiscoveryService _discoveryService;
+    private readonly IFileTransferService _fileTransferService;
+    private readonly IFirewallService _firewallService;
+    private readonly ILocalIpService _localIpService;
+    private readonly IThemeService _themeService;
+    private readonly IFilePickerService _filePickerService;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendFilesCommand))]
@@ -114,6 +76,17 @@ public partial class MainWindowViewModel : ObservableObject
     private bool _isScanning;
 
     [ObservableProperty]
+    private DiscoveredDevice? _selectedDevice;
+
+    [ObservableProperty]
+    private string _selectedDeviceIp = "";
+
+    partial void OnSelectedDeviceChanged(DiscoveredDevice? value)
+    {
+        SelectedDeviceIp = value?.IpAddress ?? "";
+    }
+
+    [ObservableProperty]
     private int _selectedTabIndex;
 
     [ObservableProperty]
@@ -134,30 +107,12 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(NavBarBackground))]
     private bool _isNavBarScrolled;
 
-    private static readonly IBrush LightNavBarCream = new SolidColorBrush(Color.Parse("#FFF8E7"));
-    private static readonly IBrush LightNavBarBluish = new SolidColorBrush(Color.Parse("#B08B5CF6"));
-    private static readonly IBrush DarkNavBarGradient = new LinearGradientBrush
-    {
-        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
-        EndPoint = new RelativePoint(1, 0, RelativeUnit.Relative),
-        GradientStops = new GradientStops
-        {
-            new GradientStop(Color.Parse("#2563EB"), 0),
-            new GradientStop(Color.Parse("#7C3AED"), 0.55),
-            new GradientStop(Color.Parse("#0EA5E9"), 1)
-        }
-    };
-
-    public IBrush NavBarBackground => IsDarkTheme ? DarkNavBarGradient : (IsNavBarScrolled ? LightNavBarBluish : LightNavBarCream);
-
     public string ThemeIcon => IsDarkTheme ? "🌙" : "☀️";
 
-    private bool IsSystemDarkTheme() =>
-        Application.Current?.ActualThemeVariant is { } v && v == ThemeVariant.Dark;
+    public IBrush NavBarBackground => IsDarkTheme ? Brushes.Transparent : (IsNavBarScrolled ? Brushes.Transparent : Brushes.Transparent);
 
     public ObservableCollection<string> SelectedFiles { get; } = new();
     public ObservableCollection<DiscoveredDevice> DiscoveredDevices { get; } = new();
-    public string? SelectedFolderRoot { get; set; }
 
     public bool HasSelectedFiles => SelectedFiles.Count > 0;
     public bool HasDiscoveredDevices => DiscoveredDevices.Count > 0;
@@ -165,14 +120,32 @@ public partial class MainWindowViewModel : ObservableObject
     public bool HasCurrentFile => !string.IsNullOrEmpty(CurrentFileName);
 
     public MainWindowViewModel()
+        : this(
+            new DiscoveryService(new LocalIpService()),
+            new FileTransferService(),
+            new FirewallService(),
+            new LocalIpService(),
+            new ThemeService(),
+            new FilePickerService())
     {
-        LocalIp = GetLocalIpAddress();
-        IsDarkTheme = IsSystemDarkTheme();
-        if (Application.Current is { } app)
-        {
-            app.ActualThemeVariantChanged += OnActualThemeVariantChanged;
-        }
-        _ = CheckFirewallAsync();
+    }
+
+    public MainWindowViewModel(
+        IDiscoveryService discoveryService,
+        IFileTransferService fileTransferService,
+        IFirewallService firewallService,
+        ILocalIpService localIpService,
+        IThemeService themeService,
+        IFilePickerService filePickerService)
+    {
+        _discoveryService = discoveryService;
+        _fileTransferService = fileTransferService;
+        _firewallService = firewallService;
+        _localIpService = localIpService;
+        _themeService = themeService;
+        _filePickerService = filePickerService;
+
+        _ = InitializeAsync();
 
         SelectedFiles.CollectionChanged += (_, _) =>
         {
@@ -189,184 +162,169 @@ public partial class MainWindowViewModel : ObservableObject
                 foreach (DiscoveredDevice d in args.OldItems)
                     d.PropertyChanged -= OnDevicePropertyChanged;
         };
+
+        _discoveryService.DeviceFound += (_, device) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (!DiscoveredDevices.Any(d => d.IpAddress == device.IpAddress && d.Port == device.Port))
+                {
+                    DiscoveredDevices.Add(device);
+                    Status = $"Found {DiscoveredDevices.Count} device(s)";
+                }
+            });
+        };
+
+        _discoveryService.ScanCompleted += (_, _) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                IsScanning = false;
+                if (DiscoveredDevices.Count == 0)
+                {
+                    Status = "No devices found. Make sure receiver is running on other device.";
+                    _ = CheckFirewallAsync();
+                }
+                else
+                {
+                    Status = $"Found {DiscoveredDevices.Count} device(s)";
+                    IsFirewallWarningVisible = false;
+                }
+            });
+        };
+
+        _discoveryService.ScanError += (_, ex) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                Status = $"Scan error: {ex.Message}";
+                IsScanning = false;
+            });
+        };
+
+        _fileTransferService.TransferProgress += (_, e) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                CurrentFileName = e.CurrentFileName ?? "";
+                CurrentFileProgress = $"{FormatFileSize(e.BytesTransferred)} / {FormatFileSize(e.TotalBytes)}";
+                Progress = e.Percentage;
+                Status = e.IsReceiving
+                    ? $"Receiving: {e.CurrentFileName} ({e.Percentage:F1}%)"
+                    : $"Sending: {e.CurrentFileName} ({e.Percentage:F1}%)";
+            });
+        };
+
+        _fileTransferService.TransferCompleted += (_, e) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                Status = e.Success ? "Transfer complete!" : $"Transfer failed: {e.ErrorMessage}";
+                Progress = 100;
+                CurrentFileName = "";
+                CurrentFileProgress = "";
+                IsSending = false;
+                IsReceiving = false;
+            });
+        };
+
+        _fileTransferService.TransferError += (_, e) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                Status = e.ErrorMessage;
+                IsSending = false;
+                IsReceiving = false;
+            });
+        };
+
+        _fileTransferService.ConnectionStatusChanged += (_, e) =>
+        {
+            Dispatcher.UIThread.Post(() => ConnectionTestResult = e);
+        };
+
+        _themeService.ThemeChanged += (_, e) =>
+        {
+            Dispatcher.UIThread.Post(() => IsDarkTheme = e.IsDark);
+        };
     }
 
-    private void OnDevicePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    private async Task InitializeAsync()
+    {
+        LocalIp = await _localIpService.GetLocalIpAddressAsync();
+        IsDarkTheme = _themeService.IsSystemDarkTheme();
+        if (Application.Current is { } app)
+        {
+            app.ActualThemeVariantChanged += (_, _) =>
+            {
+                if (app.RequestedThemeVariant == ThemeVariant.Default)
+                    IsDarkTheme = _themeService.IsSystemDarkTheme();
+            };
+        }
+        await CheckFirewallAsync();
+    }
+
+    private void OnDevicePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(DiscoveredDevice.IsSelected))
             SendFilesCommand.NotifyCanExecuteChanged();
     }
 
-    private void OnActualThemeVariantChanged(object? sender, EventArgs e)
-    {
-        if (Application.Current?.RequestedThemeVariant == ThemeVariant.Default)
-        {
-            IsDarkTheme = IsSystemDarkTheme();
-        }
-    }
+    public bool CanSendFiles() =>
+        SelectedFiles.Count > 0
+        && !IsSending
+        && (!string.IsNullOrWhiteSpace(SelectedDeviceIp) || DiscoveredDevices.Any(d => d.IsSelected));
 
-    private string GetLocalIpAddress()
+    [RelayCommand(CanExecute = nameof(CanSendFiles))]
+    private async Task SendFiles(Window? window)
     {
+        var devices = DiscoveredDevices.Where(d => d.IsSelected).ToList();
+        if (devices.Count == 0 && !string.IsNullOrWhiteSpace(SelectedDeviceIp))
+        {
+            var ips = SelectedDeviceIp.Split(new[] { ',', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(ip => ip.Trim())
+                .Where(ip => !string.IsNullOrWhiteSpace(ip))
+                .ToList();
+            devices = ips.Select(ip => new DiscoveredDevice { IpAddress = ip, Port = Port, IsSelected = true }).ToList();
+        }
+        if (devices.Count == 0)
+        {
+            Status = "Select a device or enter at least one IP address";
+            return;
+        }
+
+        IsSending = true;
+        Progress = 0;
+        CurrentFileName = "";
+        CurrentFileProgress = "";
+
         try
         {
-            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0);
-            socket.Connect("8.8.8.8", 65530);
-            var endPoint = socket.LocalEndPoint as IPEndPoint;
-            var ip = endPoint?.Address.ToString();
-            if (!string.IsNullOrEmpty(ip) && !ip.StartsWith("127."))
-                return ip;
+            await _fileTransferService.SendFilesAsync(SelectedFiles, devices);
         }
-        catch
+        catch (OperationCanceledException)
         {
+            Status = "Sending cancelled";
         }
-
-        foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces())
+        finally
         {
-            if (networkInterface.OperationalStatus != OperationalStatus.Up)
-                continue;
-            if (networkInterface.NetworkInterfaceType == NetworkInterfaceType.Loopback)
-                continue;
-
-            foreach (var unicastAddress in networkInterface.GetIPProperties().UnicastAddresses)
-            {
-                if (unicastAddress.Address.AddressFamily == AddressFamily.InterNetwork &&
-                    !IPAddress.IsLoopback(unicastAddress.Address))
-                {
-                    return unicastAddress.Address.ToString();
-                }
-            }
+            IsSending = false;
         }
-
-        return "0.0.0.0";
     }
 
-    private string GetNetworkPrefix()
+    [RelayCommand]
+    private void StopSending()
     {
-        try
-        {
-            string ip = LocalIp;
-            if (string.IsNullOrEmpty(ip) || ip.StartsWith("127.") || ip.StartsWith("0."))
-                return "192.168.1";
-            var parts = ip.Split('.');
-            if (parts.Length >= 3)
-                return $"{parts[0]}.{parts[1]}.{parts[2]}";
-            return "192.168.1";
-        }
-        catch
-        {
-            return "192.168.1";
-        }
+        Status = "Stopping send...";
     }
-
-    private IReadOnlyList<string> GetBroadcastAddresses()
-    {
-        var broadcasts = new List<string>();
-
-        foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces())
-        {
-            if (networkInterface.OperationalStatus != OperationalStatus.Up)
-                continue;
-
-            if (networkInterface.NetworkInterfaceType == NetworkInterfaceType.Loopback)
-                continue;
-
-            foreach (var unicastAddress in networkInterface.GetIPProperties().UnicastAddresses)
-            {
-                if (unicastAddress.Address.AddressFamily != AddressFamily.InterNetwork)
-                    continue;
-
-                if (unicastAddress.IPv4Mask == null)
-                    continue;
-
-                var ipBytes = unicastAddress.Address.GetAddressBytes();
-                var maskBytes = unicastAddress.IPv4Mask.GetAddressBytes();
-                var broadcastBytes = new byte[4];
-
-                for (int i = 0; i < 4; i++)
-                    broadcastBytes[i] = (byte)(ipBytes[i] | ~maskBytes[i]);
-
-                var broadcast = new IPAddress(broadcastBytes).ToString();
-                if (!broadcasts.Contains(broadcast))
-                    broadcasts.Add(broadcast);
-            }
-        }
-
-        if (broadcasts.Count == 0)
-        {
-            broadcasts.Add("255.255.255.255");
-        }
-
-        return broadcasts;
-    }
-
-    private static bool TryParseDeviceMessage(string message, out DiscoveredDevice? device)
-    {
-        device = null;
-        if (!message.StartsWith("WIFISENDER_RESPONSE|") && !message.StartsWith("WIFISENDER_ANNOUNCE|"))
-            return false;
-
-        var parts = message.Split('|');
-        if (parts.Length < 3)
-            return false;
-
-        device = new DiscoveredDevice
-        {
-            IpAddress = parts[1],
-            Port = parts[2],
-            DeviceName = parts.Length > 3 ? parts[3] : ""
-        };
-        return true;
-    }
-
-    private async Task BroadcastPresenceAsync(UdpClient udp, int filePort, CancellationToken token)
-    {
-        string hostName = Environment.MachineName;
-        string announce = $"WIFISENDER_ANNOUNCE|{LocalIp}|{filePort}|{hostName}";
-        byte[] data = Encoding.UTF8.GetBytes(announce);
-
-        foreach (var broadcastIp in GetBroadcastAddresses())
-        {
-            if (token.IsCancellationRequested)
-                return;
-
-            try
-            {
-                await udp.SendAsync(data, data.Length, new IPEndPoint(IPAddress.Parse(broadcastIp), DiscoveryPort));
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-            catch (SocketException)
-            {
-            }
-        }
-    }
-
-    private IReadOnlyList<DiscoveredDevice> GetSelectedDevices() =>
-        DiscoveredDevices.Where(d => d.IsSelected).ToArray();
 
     [RelayCommand]
     private async Task SelectFiles(Window? window)
     {
-        if (window == null) return;
-
-        var files = await window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            Title = "Select Files to Send",
-            AllowMultiple = true,
-            FileTypeFilter = new[]
-            {
-                new FilePickerFileType("All Files") { Patterns = new[] { "*.*" } }
-            }
-        });
-
+        var files = await _filePickerService.PickFilesAsync(window);
         SelectedFiles.Clear();
-        SelectedFolderRoot = null;
-        foreach (var file in files)
-        {
-            SelectedFiles.Add(file.Path.LocalPath);
-        }
+        foreach (var f in files)
+            SelectedFiles.Add(f);
 
         if (SelectedFiles.Count > 0)
         {
@@ -383,17 +341,9 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task SelectFolder(Window? window)
     {
-        if (window == null) return;
+        var folderPath = await _filePickerService.PickFolderAsync(window);
+        if (folderPath == null) return;
 
-        var folders = await window.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
-        {
-            Title = "Select Folder to Send",
-            AllowMultiple = false
-        });
-
-        if (folders.Count == 0) return;
-
-        var folderPath = folders[0].Path.LocalPath;
         string[] files;
         try
         {
@@ -405,7 +355,6 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         SelectedFiles.Clear();
-        SelectedFolderRoot = folderPath;
         foreach (var f in files)
             SelectedFiles.Add(f);
 
@@ -425,12 +374,10 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task SelectDownloadFolder(Window? window)
     {
-        if (window == null) return;
-
-        var folder = await window.StorageProvider.OpenFolderPickerAsync(_folderPickerOptions);
-        if (folder.Count > 0)
+        var folder = await _filePickerService.PickDownloadFolderAsync(window);
+        if (folder != null)
         {
-            DownloadFolder = folder[0].Path.LocalPath;
+            DownloadFolder = folder;
             Status = $"Download folder: {DownloadFolder}";
         }
     }
@@ -444,100 +391,7 @@ public partial class MainWindowViewModel : ObservableObject
         DiscoveredDevices.Clear();
         Status = "Scanning for nearby devices...";
 
-        _scanCts = new CancellationTokenSource();
-
-        try
-        {
-            // Start UDP listener for responses
-            _udpScanner = new UdpClient();
-            _udpScanner.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            _udpScanner.Client.Bind(new IPEndPoint(IPAddress.Any, DiscoveryPort));
-            _udpScanner.EnableBroadcast = true;
-
-            var broadcastAddresses = GetBroadcastAddresses();
-            Status = $"Scanning {broadcastAddresses.Count} network broadcast address(es)...";
-
-            string discoveryMsg = $"WIFISENDER_DISCOVERY|{LocalIp}|{Port}";
-            byte[] data = Encoding.UTF8.GetBytes(discoveryMsg);
-
-            for (int i = 0; i < 3; i++)
-            {
-                if (_scanCts.Token.IsCancellationRequested) break;
-
-                foreach (var broadcastIp in broadcastAddresses)
-                {
-                    if (_scanCts.Token.IsCancellationRequested) break;
-                    await _udpScanner.SendAsync(data, data.Length, new IPEndPoint(IPAddress.Parse(broadcastIp), DiscoveryPort));
-                }
-
-                await Task.Delay(500);
-            }
-
-            var endTime = DateTime.UtcNow.AddSeconds(5);
-
-            while (DateTime.UtcNow < endTime && !_scanCts.Token.IsCancellationRequested)
-            {
-                try
-                {
-                    using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
-                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_scanCts.Token, timeoutCts.Token);
-
-                    var result = await _udpScanner.ReceiveAsync(linkedCts.Token);
-                    string response = Encoding.UTF8.GetString(result.Buffer);
-
-                    if (TryParseDeviceMessage(response, out var device) && device != null)
-                    {
-                        await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                        {
-                            if (!DiscoveredDevices.Any(d => d.IpAddress == device.IpAddress && d.Port == device.Port))
-                            {
-                                DiscoveredDevices.Add(device);
-                                Status = $"Found {DiscoveredDevices.Count} device(s)";
-                            }
-                        });
-                    }
-                }
-                catch (OperationCanceledException) when (_scanCts.Token.IsCancellationRequested)
-                {
-                    break;
-                }
-                catch (OperationCanceledException)
-                {
-                }
-                catch (SocketException ex)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        Status = $"Socket error while scanning: {ex.Message}";
-                    });
-                }
-            }
-
-            if (DiscoveredDevices.Count == 0)
-            {
-                Status = "No devices found. Make sure receiver is running on other device.";
-                await CheckFirewallAsync();
-            }
-            else
-            {
-                Status = $"Found {DiscoveredDevices.Count} device(s)";
-                IsFirewallWarningVisible = false;
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            Status = "Scan cancelled";
-        }
-        catch (Exception ex)
-        {
-            Status = $"Scan error: {ex.Message}";
-        }
-        finally
-        {
-            IsScanning = false;
-            _udpScanner?.Close();
-            _udpScanner?.Dispose();
-        }
+        await _discoveryService.ScanAsync();
     }
 
     [RelayCommand]
@@ -554,550 +408,20 @@ public partial class MainWindowViewModel : ObservableObject
             d.IsSelected = false;
     }
 
-    public bool CanSendFiles() =>
-        SelectedFiles.Count > 0
-        && DiscoveredDevices.Any(d => d.IsSelected)
-        && !IsSending;
-
-    [RelayCommand(CanExecute = nameof(CanSendFiles))]
-    private async Task SendFiles(Window? window)
-    {
-        var devices = GetSelectedDevices();
-        if (devices.Count == 0)
-        {
-            Status = "Select one or more receiver devices";
-            return;
-        }
-
-        IsSending = true;
-        Progress = 0;
-        CurrentFileName = "";
-        CurrentFileProgress = "";
-        _sendCompletedBytes = 0;
-        _sendTotalBytes = 0;
-        foreach (var f in SelectedFiles)
-        {
-            if (File.Exists(f))
-                _sendTotalBytes += new FileInfo(f).Length;
-        }
-        _sendCts = new CancellationTokenSource();
-        var sendToken = _sendCts.Token;
-
-        try
-        {
-            ThreadPool.GetMinThreads(out int minWorker, out int minIocp);
-            ThreadPool.SetMinThreads(Math.Max(minWorker, devices.Count * 4), minIocp);
-
-            var failures = new List<string>();
-            var sendTasks = devices.Select(async (device, idx) =>
-            {
-                try
-                {
-                    await SendToRecipientAsync(device.IpAddress, int.Parse(device.Port), idx, devices.Count, sendToken);
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    lock (failures) failures.Add($"{device.IpAddress}:{device.Port}: {ex.Message}");
-                }
-            });
-            await Task.WhenAll(sendTasks);
-
-            if (failures.Count == 0)
-            {
-                Status = "Finished sending to all receivers";
-                Progress = 100;
-                CurrentFileName = "";
-                CurrentFileProgress = "";
-            }
-            else
-            {
-                Status = $"Send completed with errors: {string.Join("; ", failures)}";
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            Status = "Sending cancelled";
-        }
-        finally
-        {
-            IsSending = false;
-            _sendCts?.Dispose();
-            _sendCts = null;
-        }
-    }
-
     [RelayCommand]
-    private void StopSending()
+    private void SelectDevice(DiscoveredDevice? device)
     {
-        _sendCts?.Cancel();
-        Status = "Stopping send...";
-    }
-
-    private string GetSendFileName(string filePath)
-    {
-        if (SelectedFolderRoot != null && filePath.StartsWith(SelectedFolderRoot, StringComparison.OrdinalIgnoreCase))
+        if (device != null)
         {
-            var relative = filePath.Substring(SelectedFolderRoot.Length)
-                .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            if (relative.Length > 0)
-            {
-                string folderName = Path.GetFileName(SelectedFolderRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-                return Path.Combine(folderName, relative);
-            }
-        }
-        return Path.GetFileName(filePath);
-    }
-
-    private void ReportSendProgress(long sentDelta, long filePos, long fileSize, int recipientIdx, int recipientCount, string fileName)
-    {
-        long completed;
-        lock (_sendProgressLock)
-        {
-            _sendCompletedBytes += sentDelta;
-            completed = _sendCompletedBytes;
-        }
-        double pct = Math.Min(completed * 100.0 / (_sendTotalBytes * recipientCount), 100.0);
-        Progress = Math.Round(pct, 1);
-        CurrentFileProgress = $"Receiver {recipientIdx + 1}/{recipientCount}: {FormatFileSize(filePos)} / {FormatFileSize(fileSize)}";
-        Status = $"[{recipientIdx + 1}/{recipientCount}] Sending {fileName} ({filePos * 100.0 / fileSize:F1}%)";
-    }
-
-    private async Task SendToRecipientAsync(string recipientIp, int port, int recipientIndex, int recipientCount, CancellationToken ct)
-    {
-        try
-        {
-            Status = $"[{recipientIndex + 1}/{recipientCount}] Connecting to {recipientIp}:{port}...";
-            await SendFilesToRecipientAsync(recipientIp, port, recipientIndex, recipientCount, ct);
-            Status = $"[{recipientIndex + 1}/{recipientCount}] Sent to {recipientIp}";
-        }
-        catch (OperationCanceledException)
-        {
-            Status = $"Cancelled sending to {recipientIp}";
-            throw;
-        }
-    }
-
-    private async Task SendFilesToRecipientAsync(string recipientIp, int port, int recipientIndex, int recipientCount, CancellationToken ct = default)
-    {
-        ct.ThrowIfCancellationRequested();
-
-        using var client = new TcpClient();
-        client.NoDelay = true;
-        client.LingerState = new LingerOption(true, 30);
-        client.SendBufferSize = BufferSize;
-        client.ReceiveBufferSize = BufferSize;
-        client.Client.SendTimeout = NetworkTimeoutMs;
-        await client.ConnectAsync(recipientIp, port, ct);
-
-        await using var stream = client.GetStream();
-
-        int totalFiles = SelectedFiles.Count;
-        var fileEntries = new (string Path, string Name, long Size)[totalFiles];
-        long totalBytes = 0;
-
-        for (int i = 0; i < totalFiles; i++)
-        {
-            string path = SelectedFiles[i];
-            if (!File.Exists(path))
-            {
-                fileEntries[i] = (null!, null!, 0);
-                continue;
-            }
-            var info = new FileInfo(path);
-            long size = info.Length;
-            fileEntries[i] = (path, info.Name, size);
-            totalBytes += size;
-        }
-
-        if (totalBytes == 0)
-            throw new InvalidOperationException("No selected files could be sent.");
-
-        for (int fileIdx = 0; fileIdx < totalFiles; fileIdx++)
-        {
-            ct.ThrowIfCancellationRequested();
-
-            var (filePath, _, fileSize) = fileEntries[fileIdx];
-            if (filePath == null)
-                continue;
-
-            string sendName = GetSendFileName(filePath);
-            CurrentFileName = sendName;
-
-            byte[] fileNameBytes = Encoding.UTF8.GetBytes(sendName);
-            byte[] header = new byte[4 + fileNameBytes.Length + 8];
-            BitConverter.GetBytes(fileNameBytes.Length).CopyTo(header, 0);
-            fileNameBytes.CopyTo(header, 4);
-            BitConverter.GetBytes(fileSize).CopyTo(header, 4 + fileNameBytes.Length);
-
-            await stream.WriteAsync(header, ct);
-
-            await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
-            byte[] buffer = new byte[BufferSize];
-            int bytesRead;
-            long readSoFar = 0;
-            while ((bytesRead = await fileStream.ReadAsync(buffer, ct)) > 0)
-            {
-                ct.ThrowIfCancellationRequested();
-                await stream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
-                readSoFar += bytesRead;
-                ReportSendProgress(bytesRead, readSoFar, fileSize, recipientIndex, recipientCount, sendName);
-            }
-        }
-
-        byte[] endMarker = BitConverter.GetBytes((int)0);
-        await stream.WriteAsync(endMarker, ct);
-        await stream.FlushAsync(ct);
-
-        using var readCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        readCts.CancelAfter(TimeSpan.FromSeconds(30));
-        try
-        {
-            byte[] ackBuf = new byte[1];
-            int ackRead = await ReadExactAsync(stream, ackBuf, readCts.Token);
-            if (ackRead == 0 || ackBuf[0] != 0xFF)
-                throw new IOException("Receiver did not acknowledge transfer");
-        }
-        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
-        {
-            throw new TimeoutException("Timed out waiting for receiver acknowledgment");
-        }
-    }
-
-    [RelayCommand]
-    private async Task StartReceiving(Window? window)
-    {
-        if (string.IsNullOrWhiteSpace(DownloadFolder))
-        {
-            DownloadFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
-            if (!Directory.Exists(DownloadFolder))
-                Directory.CreateDirectory(DownloadFolder);
-            Status = $"Using default folder: {DownloadFolder}";
-        }
-
-        if (!int.TryParse(Port, out int port) || port <= 0 || port > 65535)
-        {
-            Status = "Invalid port number!";
-            return;
-        }
-
-        LocalIp = GetLocalIpAddress();
-        IsReceiving = true;
-        Status = $"Listening on {LocalIp}:{port} (broadcasting to network)...";
-        Progress = 0;
-        _cts = new CancellationTokenSource();
-
-        _ = RunDiscoveryServiceAsync(port);
-
-        try
-        {
-            _server = new TcpListener(IPAddress.Any, port);
-            _server.Start();
-
-            while (!_cts.Token.IsCancellationRequested)
-            {
-                var client = await _server.AcceptTcpClientAsync(_cts.Token);
-                _ = HandleClientAsync(client, _cts.Token);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            Status = "Stopped listening";
-        }
-        catch (Exception ex)
-        {
-            Status = $"Error: {ex.Message}";
-        }
-        finally
-        {
-            IsReceiving = false;
-        }
-    }
-
-    private async Task RunDiscoveryServiceAsync(int filePort)
-    {
-        try
-        {
-            using var udpServer = new UdpClient();
-            udpServer.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            udpServer.Client.Bind(new IPEndPoint(IPAddress.Any, DiscoveryPort));
-            udpServer.EnableBroadcast = true;
-
-            string hostName = Environment.MachineName;
-            var token = _cts!.Token;
-            var lastAnnounce = DateTime.MinValue;
-
-            await BroadcastPresenceAsync(udpServer, filePort, token);
-            lastAnnounce = DateTime.UtcNow;
-
-            while (!token.IsCancellationRequested)
-            {
-                if ((DateTime.UtcNow - lastAnnounce).TotalSeconds >= 2)
-                {
-                    await BroadcastPresenceAsync(udpServer, filePort, token);
-                    lastAnnounce = DateTime.UtcNow;
-                }
-
-                try
-                {
-                    using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
-                    using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token, timeoutCts.Token);
-
-                    var result = await udpServer.ReceiveAsync(linkedCts.Token);
-                    string message = Encoding.UTF8.GetString(result.Buffer);
-
-                    if (message.StartsWith("WIFISENDER_DISCOVERY"))
-                    {
-                        string response = $"WIFISENDER_RESPONSE|{LocalIp}|{filePort}|{hostName}";
-                        byte[] responseBytes = Encoding.UTF8.GetBytes(response);
-                        await udpServer.SendAsync(responseBytes, responseBytes.Length, result.RemoteEndPoint);
-                    }
-                }
-                catch (OperationCanceledException) when (token.IsCancellationRequested)
-                {
-                    break;
-                }
-                catch (OperationCanceledException)
-                {
-                }
-                catch (SocketException ex)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        Status = $"Socket error in discovery service: {ex.Message}";
-                    });
-                }
-                catch (Exception ex)
-                {
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        Status = $"Discovery service error: {ex.Message}";
-                    });
-                }
-            }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (Exception ex)
-        {
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                Status = $"Discovery service failed: {ex.Message}";
-            });
-        }
-    }
-
-    private async Task HandleClientAsync(TcpClient client, CancellationToken ct)
-    {
-        try
-        {
-            client.NoDelay = true;
-            client.ReceiveBufferSize = BufferSize;
-            client.SendBufferSize = BufferSize;
-            client.Client.ReceiveTimeout = NetworkTimeoutMs;
-
-            var remoteEndPoint = (IPEndPoint?)client.Client.RemoteEndPoint;
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                Status = $"Connection from {remoteEndPoint?.Address}";
-            });
-
-            using var stream = client.GetStream();
-            long totalReceived = 0;
-
-            while (true)
-            {
-                byte[] lengthBuffer = new byte[4];
-                int read = await ReadExactAsync(stream, lengthBuffer, ct);
-                if (read == 0) break;
-
-                int fileNameLength = BitConverter.ToInt32(lengthBuffer, 0);
-
-                if (fileNameLength == 0)
-                {
-                    try { await stream.WriteAsync(new byte[] { 0xFF }, ct); }
-                    catch { }
-                    break;
-                }
-
-                if (fileNameLength < 0 || fileNameLength > 4096)
-                {
-                    Status = $"Invalid file name length: {fileNameLength}";
-                    break;
-                }
-
-                byte[] fileNameBuffer = new byte[fileNameLength];
-                int fileNameRead = await ReadExactAsync(stream, fileNameBuffer, ct);
-                if (fileNameRead != fileNameLength)
-                {
-                    Status = "Connection closed while reading file name";
-                    break;
-                }
-
-                string fileName = Encoding.UTF8.GetString(fileNameBuffer);
-
-                string[] pathParts = fileName.Split(new[] { '/', '\\' }, StringSplitOptions.None);
-                for (int i = 0; i < pathParts.Length; i++)
-                {
-                    foreach (char c in Path.GetInvalidFileNameChars())
-                        pathParts[i] = pathParts[i].Replace(c, '_');
-                }
-                fileName = string.Join(Path.DirectorySeparatorChar, pathParts);
-
-                byte[] sizeBuffer = new byte[8];
-                int sizeRead = await ReadExactAsync(stream, sizeBuffer, ct);
-                if (sizeRead != 8)
-                {
-                    Status = "Connection closed while reading file size";
-                    break;
-                }
-
-                long fileSize = BitConverter.ToInt64(sizeBuffer, 0);
-
-                if (fileSize < 0)
-                {
-                    Status = $"Invalid file size: {fileSize}";
-                    break;
-                }
-
-                CurrentFileName = fileName;
-
-                string savePath = Path.Combine(DownloadFolder, fileName);
-                string? saveDir = Path.GetDirectoryName(savePath);
-                if (!string.IsNullOrEmpty(saveDir) && !Directory.Exists(saveDir))
-                    Directory.CreateDirectory(saveDir);
-
-                string originalPath = savePath;
-                int counter = 1;
-                while (File.Exists(savePath))
-                {
-                    string name = Path.GetFileNameWithoutExtension(originalPath);
-                    string ext = Path.GetExtension(originalPath);
-                    string newName = $"{name} ({counter}){ext}";
-                    savePath = Path.Combine(saveDir ?? DownloadFolder, newName);
-                    counter++;
-                }
-
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    Status = $"Receiving: {fileName} ({FormatFileSize(fileSize)})";
-                });
-
-                await using var fileStream = new FileStream(savePath, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, FileOptions.Asynchronous);
-                byte[] buffer = new byte[BufferSize];
-                long received = 0;
-                bool complete = true;
-
-                while (received < fileSize)
-                {
-                    int toRead = (int)Math.Min(buffer.Length, fileSize - received);
-                    int bytesRead = await stream.ReadAsync(buffer.AsMemory(0, toRead));
-                    if (bytesRead == 0) { complete = false; break; }
-
-                    await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
-                    received += bytesRead;
-                    totalReceived += bytesRead;
-
-                    double fileProgress = (received * 100.0) / fileSize;
-                    CurrentFileProgress = $"{FormatFileSize(received)} / {FormatFileSize(fileSize)}";
-
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        Progress = fileProgress;
-                    });
-                }
-
-                if (!complete || received != fileSize)
-                {
-                    fileStream.Close();
-                    if (File.Exists(savePath))
-                        File.Delete(savePath);
-                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        Status = $"Incomplete transfer: {fileName} was discarded";
-                    });
-                    break;
-                }
-
-                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    Status = $"Received: {fileName}";
-                    Progress = 100;
-                });
-            }
-
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                Status = $"Transfer complete! ({FormatFileSize(totalReceived)} received)";
-                Progress = 100;
-                CurrentFileName = "";
-                CurrentFileProgress = "";
-            });
-        }
-        catch (OperationCanceledException)
-        {
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                Status = "Receive cancelled";
-            });
-        }
-        catch (Exception ex)
-        {
-            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                Status = $"Receive error: {ex.Message}";
-            });
-        }
-        finally
-        {
-            client.Close();
-        }
-    }
-
-    private async Task<int> ReadExactAsync(NetworkStream stream, byte[] buffer, CancellationToken ct = default)
-    {
-        int totalRead = 0;
-        while (totalRead < buffer.Length)
-        {
-            int read = await stream.ReadAsync(buffer.AsMemory(totalRead, buffer.Length - totalRead), ct);
-            if (read == 0) return totalRead;
-            totalRead += read;
-        }
-        return totalRead;
-    }
-
-    [RelayCommand]
-    private void StopReceiving()
-    {
-        _cts?.Cancel();
-        _scanCts?.Cancel();
-        _server?.Stop();
-        IsReceiving = false;
-        IsScanning = false;
-        Status = "Stopped";
-    }
-
-    [RelayCommand]
-    private async Task ToggleReceiving(Window? window)
-    {
-        if (IsReceiving)
-        {
-            StopReceiving();
-        }
-        else
-        {
-            await StartReceiving(window);
+            SelectedDevice = device;
+            Status = $"Selected: {device.DisplayName}";
         }
     }
 
     [RelayCommand]
     private async Task TestConnection()
     {
-        var selectedDevices = GetSelectedDevices();
+        var selectedDevices = DiscoveredDevices.Where(d => d.IsSelected).ToList();
         if (selectedDevices.Count == 0)
         {
             ConnectionTestResult = "Select one or more receiver devices";
@@ -1106,37 +430,51 @@ public partial class MainWindowViewModel : ObservableObject
 
         ConnectionTestResult = "Testing receivers...";
 
-        var results = new List<string>();
         foreach (var device in selectedDevices)
         {
-            try
-            {
-                using var client = new TcpClient();
-                var connectTask = client.ConnectAsync(device.IpAddress, int.Parse(device.Port));
-
-                if (await Task.WhenAny(connectTask, Task.Delay(3000)) == connectTask)
-                {
-                    results.Add($"OK - connected to {device.DisplayName}");
-                }
-                else
-                {
-                    results.Add($"Timeout - {device.DisplayName}");
-                }
-            }
-            catch (Exception ex)
-            {
-                results.Add($"Failed - {device.DisplayName}: {ex.Message}");
-            }
+            await _fileTransferService.TestConnectionAsync(device.IpAddress, int.Parse(device.Port));
         }
+    }
 
-        ConnectionTestResult = string.Join(Environment.NewLine, results);
+    [RelayCommand]
+    private async Task ToggleReceiving(Window? window)
+    {
+        if (IsReceiving)
+        {
+            await _fileTransferService.StopReceivingAsync();
+            IsReceiving = false;
+            Status = "Stopped listening";
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(DownloadFolder))
+            {
+                DownloadFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+                if (!Directory.Exists(DownloadFolder))
+                    Directory.CreateDirectory(DownloadFolder);
+                Status = $"Using default folder: {DownloadFolder}";
+            }
+
+            if (!int.TryParse(Port, out int port) || port <= 0 || port > 65535)
+            {
+                Status = "Invalid port number!";
+                return;
+            }
+
+            LocalIp = await _localIpService.GetLocalIpAddressAsync();
+            IsReceiving = true;
+            Status = $"Listening on {LocalIp}:{port} (broadcasting to network)...";
+            Progress = 0;
+
+            _ = _discoveryService.StartRespondingAsync(port);
+            await _fileTransferService.StartReceivingAsync(DownloadFolder, port);
+        }
     }
 
     [RelayCommand]
     private void ClearFiles()
     {
         SelectedFiles.Clear();
-        SelectedFolderRoot = null;
         Status = "Files cleared";
     }
 
@@ -1145,193 +483,37 @@ public partial class MainWindowViewModel : ObservableObject
     {
         ContentOpacity = 0;
         await Task.Delay(200);
-        IsDarkTheme = !IsDarkTheme;
-        if (Application.Current is { } app)
-        {
-            app.RequestedThemeVariant = IsDarkTheme ? ThemeVariant.Dark : ThemeVariant.Light;
-        }
+        await _themeService.ToggleThemeAsync();
         ContentOpacity = 1;
+    }
+
+    [RelayCommand]
+    private async Task FixFirewall()
+    {
+        try
+        {
+            await _firewallService.FixFirewallAsync();
+            Status = "Firewall configured successfully";
+            await CheckFirewallAsync();
+        }
+        catch (Exception ex)
+        {
+            Status = $"Firewall fix failed: {ex.Message}";
+        }
     }
 
     private async Task CheckFirewallAsync()
     {
         try
         {
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-            {
-                IsFirewallWarningVisible = false;
-                return;
-            }
-
-            if (await IsUfwActiveAsync())
-            {
-                if (!await UfwHasPortAsync(DiscoveryPort))
-                {
-                    FirewallWarningText = "Firewall (ufw) is blocking device discovery. " +
-                        $"Allow UDP port {DiscoveryPort} to scan for devices.";
-                    IsFirewallWarningVisible = true;
-                    return;
-                }
-                IsFirewallWarningVisible = false;
-                return;
-            }
-
-            if (await IsFirewalldActiveAsync())
-            {
-                if (!await FirewalldHasPortAsync(DiscoveryPort))
-                {
-                    FirewallWarningText = "Firewall (firewalld) is blocking device discovery. " +
-                        $"Allow UDP port {DiscoveryPort} to scan for devices.";
-                    IsFirewallWarningVisible = true;
-                    return;
-                }
-                IsFirewallWarningVisible = false;
-                return;
-            }
-
-            IsFirewallWarningVisible = false;
+            var result = await _firewallService.CheckFirewallAsync();
+            IsFirewallWarningVisible = result.IsBlocking;
+            FirewallWarningText = result.WarningText;
         }
         catch
         {
             IsFirewallWarningVisible = false;
         }
-    }
-
-    private static async Task<string> RunCommandAsync(string fileName, string args)
-    {
-        try
-        {
-            var exe = GetExecutablePath(fileName);
-            if (exe == null)
-                return "";
-
-            using var proc = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = exe,
-                    Arguments = args,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false
-                }
-            };
-            try { proc.Start(); } catch { return ""; }
-            string output = await proc.StandardOutput.ReadToEndAsync();
-            await proc.StandardError.ReadToEndAsync();
-            await proc.WaitForExitAsync();
-            return output;
-        }
-        catch
-        {
-            return "";
-        }
-    }
-
-    private static async Task<bool> IsUfwActiveAsync()
-    {
-        string output = await RunCommandAsync("ufw", "status");
-        return output.Contains("Status: active");
-    }
-
-    private static async Task<bool> UfwHasPortAsync(int port)
-    {
-        string output = await RunCommandAsync("ufw", "status verbose");
-        return output.Contains($"{port}/udp") || output.Contains($"{port}");
-    }
-
-    private static async Task<bool> IsFirewalldActiveAsync()
-    {
-        string output = await RunCommandAsync("firewall-cmd", "--state");
-        return output.Trim() == "running";
-    }
-
-    private static async Task<bool> FirewalldHasPortAsync(int port)
-    {
-        string output = await RunCommandAsync("firewall-cmd", "--list-ports");
-        return output.Contains($"{port}/udp");
-    }
-
-    [RelayCommand]
-    private async Task FixFirewall()
-    {
-        string scriptPath = Path.Combine(AppContext.BaseDirectory, "scripts", "setup-firewall.sh");
-        if (!File.Exists(scriptPath))
-        {
-            scriptPath = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "scripts", "setup-firewall.sh");
-        }
-
-        if (!File.Exists(scriptPath))
-        {
-            Status = "Firewall script not found. Run: sudo scripts/setup-firewall.sh";
-            return;
-        }
-
-        // Try pkexec (Polkit) first
-        if (await TryLaunchElevatedAsync("pkexec", $"\"{scriptPath}\""))
-            return;
-
-        // Fall back to xdg-su (LXDE/XFCE)
-        if (await TryLaunchElevatedAsync("xdg-su", $"-c \"{scriptPath}\""))
-            return;
-
-        // Last fallback: show manual instruction
-        Status = $"Run manually in terminal: sudo {scriptPath}";
-    }
-
-    private static async Task<bool> TryLaunchElevatedAsync(string tool, string arguments)
-    {
-        try
-        {
-            var exe = GetExecutablePath(tool);
-            if (exe == null)
-                return false;
-
-            using var proc = new Process
-            {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = exe,
-                    Arguments = arguments,
-                    UseShellExecute = true
-                }
-            };
-            try { proc.Start(); } catch { return false; }
-            await proc.WaitForExitAsync();
-            return proc.ExitCode == 0;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    private static string? GetExecutablePath(string name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-            return null;
-
-        // If a path was provided, return it if the file exists
-        if (name.IndexOf(Path.DirectorySeparatorChar) >= 0 || name.IndexOf(Path.AltDirectorySeparatorChar) >= 0)
-            return File.Exists(name) ? name : null;
-
-        var pathEnv = Environment.GetEnvironmentVariable("PATH");
-        if (string.IsNullOrEmpty(pathEnv))
-            return null;
-
-        var parts = pathEnv.Split(Path.PathSeparator);
-        foreach (var p in parts)
-        {
-            try
-            {
-                var candidate = Path.Combine(p, name);
-                if (File.Exists(candidate))
-                    return candidate;
-            }
-            catch { }
-        }
-
-        return null;
     }
 
     public static string FormatFileSize(long bytes)

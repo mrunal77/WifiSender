@@ -26,7 +26,7 @@ public partial class MainWindow : Window
         {
             if (DataContext is MainWindowViewModel vm && !vm.IsReceiving)
             {
-                vm.StartReceivingCommand.Execute(this);
+                vm.ToggleReceivingCommand.Execute(this);
             }
         };
     }
@@ -85,9 +85,6 @@ public partial class MainWindow : Window
         if (DataContext is MainWindowViewModel vm)
         {
             vm.SelectedFiles.Clear();
-            vm.SelectedFolderRoot = null;
-            string? singleFolderRoot = null;
-            bool hasMultipleRoots = false;
 
             foreach (var file in files)
             {
@@ -95,11 +92,6 @@ public partial class MainWindow : Window
                 {
                     if (System.IO.Directory.Exists(localPath))
                     {
-                        if (singleFolderRoot == null)
-                            singleFolderRoot = localPath;
-                        else
-                            hasMultipleRoots = true;
-
                         try
                         {
                             var allFiles = System.IO.Directory.GetFiles(localPath, "*", System.IO.SearchOption.AllDirectories);
@@ -110,13 +102,10 @@ public partial class MainWindow : Window
                     }
                     else if (System.IO.File.Exists(localPath))
                     {
-                        hasMultipleRoots = true;
                         vm.SelectedFiles.Add(localPath);
                     }
                 }
             }
-
-            vm.SelectedFolderRoot = !hasMultipleRoots ? singleFolderRoot : null;
 
             if (vm.SelectedFiles.Count > 0)
             {

@@ -17,6 +17,37 @@ public partial class MainWindow : Window
         AddHandler(DragDrop.DropEvent, OnDrop);
 
         KeyDown += OnKeyDown;
+
+        SendScrollViewer.ScrollChanged += OnScrollChanged;
+        ReceiveScrollViewer.ScrollChanged += OnScrollChanged;
+        MainTabControl.SelectionChanged += OnTabSelectionChanged;
+
+        Opened += (_, _) =>
+        {
+            if (DataContext is MainWindowViewModel vm && !vm.IsReceiving)
+            {
+                vm.StartReceivingCommand.Execute(this);
+            }
+        };
+    }
+
+    private void OnScrollChanged(object? sender, ScrollChangedEventArgs e)
+    {
+        UpdateNavBarScrollState();
+    }
+
+    private void OnTabSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        UpdateNavBarScrollState();
+    }
+
+    private void UpdateNavBarScrollState()
+    {
+        if (DataContext is MainWindowViewModel vm)
+        {
+            var sv = MainTabControl.SelectedIndex == 0 ? SendScrollViewer : ReceiveScrollViewer;
+            vm.IsNavBarScrolled = sv.Offset.Y > 0;
+        }
     }
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
@@ -54,13 +85,21 @@ public partial class MainWindow : Window
         if (DataContext is MainWindowViewModel vm)
         {
             vm.SelectedFiles.Clear();
+            vm.SelectedFolderRoot = null;
+            string? singleFolderRoot = null;
+            bool hasMultipleRoots = false;
+
             foreach (var file in files)
             {
                 if (file.TryGetLocalPath() is { } localPath)
                 {
-                    // If it's a directory, expand it recursively
                     if (System.IO.Directory.Exists(localPath))
                     {
+                        if (singleFolderRoot == null)
+                            singleFolderRoot = localPath;
+                        else
+                            hasMultipleRoots = true;
+
                         try
                         {
                             var allFiles = System.IO.Directory.GetFiles(localPath, "*", System.IO.SearchOption.AllDirectories);
@@ -71,10 +110,13 @@ public partial class MainWindow : Window
                     }
                     else if (System.IO.File.Exists(localPath))
                     {
+                        hasMultipleRoots = true;
                         vm.SelectedFiles.Add(localPath);
                     }
                 }
             }
+
+            vm.SelectedFolderRoot = !hasMultipleRoots ? singleFolderRoot : null;
 
             if (vm.SelectedFiles.Count > 0)
             {

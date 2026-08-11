@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -13,6 +14,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -20,22 +22,41 @@ using CommunityToolkit.Mvvm.Input;
 
 namespace WifiSender.ViewModels;
 
-public class DiscoveredDevice
+public class DiscoveredDevice : INotifyPropertyChanged
 {
     public string IpAddress { get; set; } = "";
     public string Port { get; set; } = "";
     public string DeviceName { get; set; } = "";
     public string DisplayName => string.IsNullOrEmpty(DeviceName) ? $"{IpAddress}:{Port}" : $"{DeviceName} ({IpAddress})";
+
+    private bool _isSelected;
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected == value) return;
+            _isSelected = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+        }
+    }
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 }
 
 public partial class MainWindowViewModel : ObservableObject
 {
     private TcpListener? _server;
     private CancellationTokenSource? _cts;
+    private CancellationTokenSource? _sendCts;
     private UdpClient? _udpScanner;
     private CancellationTokenSource? _scanCts;
-    private const int BufferSize = 262144;
+    private const int BufferSize = 1048576;
+    private const int NetworkTimeoutMs = 30000;
     private const int DiscoveryPort = 5556;
+    private long _sendTotalBytes;
+    private long _sendCompletedBytes;
+    private readonly object _sendProgressLock = new();
     private readonly FolderPickerOpenOptions _folderPickerOptions = new()
     {
         Title = "Select Download Folder",
@@ -57,19 +78,6 @@ public partial class MainWindowViewModel : ObservableObject
             clean = clean.TrimStart('0');
         if (clean != value)
             Port = clean;
-    }
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SendFilesCommand))]
-    private string _recipientIp = "";
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SendFilesCommand))]
-    private string _recipientIps = "";
-
-    partial void OnRecipientIpsChanged(string value)
-    {
-        RecipientIp = GetRecipientTargets(value).FirstOrDefault() ?? "";
     }
 
     [ObservableProperty]
@@ -106,9 +114,6 @@ public partial class MainWindowViewModel : ObservableObject
     private bool _isScanning;
 
     [ObservableProperty]
-    private DiscoveredDevice? _selectedDevice;
-
-    [ObservableProperty]
     private int _selectedTabIndex;
 
     [ObservableProperty]
@@ -119,10 +124,31 @@ public partial class MainWindowViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ThemeIcon))]
+    [NotifyPropertyChangedFor(nameof(NavBarBackground))]
     private bool _isDarkTheme = true;
 
     [ObservableProperty]
     private double _contentOpacity = 1;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(NavBarBackground))]
+    private bool _isNavBarScrolled;
+
+    private static readonly IBrush LightNavBarCream = new SolidColorBrush(Color.Parse("#FFF8E7"));
+    private static readonly IBrush LightNavBarBluish = new SolidColorBrush(Color.Parse("#B08B5CF6"));
+    private static readonly IBrush DarkNavBarGradient = new LinearGradientBrush
+    {
+        StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative),
+        EndPoint = new RelativePoint(1, 0, RelativeUnit.Relative),
+        GradientStops = new GradientStops
+        {
+            new GradientStop(Color.Parse("#2563EB"), 0),
+            new GradientStop(Color.Parse("#7C3AED"), 0.55),
+            new GradientStop(Color.Parse("#0EA5E9"), 1)
+        }
+    };
+
+    public IBrush NavBarBackground => IsDarkTheme ? DarkNavBarGradient : (IsNavBarScrolled ? LightNavBarBluish : LightNavBarCream);
 
     public string ThemeIcon => IsDarkTheme ? "🌙" : "☀️";
 
@@ -131,6 +157,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     public ObservableCollection<string> SelectedFiles { get; } = new();
     public ObservableCollection<DiscoveredDevice> DiscoveredDevices { get; } = new();
+    public string? SelectedFolderRoot { get; set; }
 
     public bool HasSelectedFiles => SelectedFiles.Count > 0;
     public bool HasDiscoveredDevices => DiscoveredDevices.Count > 0;
@@ -152,7 +179,22 @@ public partial class MainWindowViewModel : ObservableObject
             OnPropertyChanged(nameof(HasSelectedFiles));
             SendFilesCommand.NotifyCanExecuteChanged();
         };
-        DiscoveredDevices.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasDiscoveredDevices));
+        DiscoveredDevices.CollectionChanged += (_, args) =>
+        {
+            OnPropertyChanged(nameof(HasDiscoveredDevices));
+            if (args.NewItems != null)
+                foreach (DiscoveredDevice d in args.NewItems)
+                    d.PropertyChanged += OnDevicePropertyChanged;
+            if (args.OldItems != null)
+                foreach (DiscoveredDevice d in args.OldItems)
+                    d.PropertyChanged -= OnDevicePropertyChanged;
+        };
+    }
+
+    private void OnDevicePropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(DiscoveredDevice.IsSelected))
+            SendFilesCommand.NotifyCanExecuteChanged();
     }
 
     private void OnActualThemeVariantChanged(object? sender, EventArgs e)
@@ -301,19 +343,8 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    private IReadOnlyList<string> GetRecipientTargets()
-    {
-        return GetRecipientTargets(RecipientIps);
-    }
-
-    private static IReadOnlyList<string> GetRecipientTargets(string? value)
-    {
-        return (value ?? "")
-            .Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(ip => !string.IsNullOrWhiteSpace(ip))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToArray();
-    }
+    private IReadOnlyList<DiscoveredDevice> GetSelectedDevices() =>
+        DiscoveredDevices.Where(d => d.IsSelected).ToArray();
 
     [RelayCommand]
     private async Task SelectFiles(Window? window)
@@ -331,6 +362,7 @@ public partial class MainWindowViewModel : ObservableObject
         });
 
         SelectedFiles.Clear();
+        SelectedFolderRoot = null;
         foreach (var file in files)
         {
             SelectedFiles.Add(file.Path.LocalPath);
@@ -373,6 +405,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
 
         SelectedFiles.Clear();
+        SelectedFolderRoot = folderPath;
         foreach (var f in files)
             SelectedFiles.Add(f);
 
@@ -508,37 +541,31 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void SelectDevice(DiscoveredDevice? device)
+    private void SelectAllDevices()
     {
-        if (device != null)
-        {
-            SelectedDevice = device;
-            RecipientIps = device.IpAddress;
-            if (!string.IsNullOrEmpty(device.Port))
-                Port = device.Port;
-            Status = $"Selected: {device.DisplayName}";
-        }
+        foreach (var d in DiscoveredDevices)
+            d.IsSelected = true;
+    }
+
+    [RelayCommand]
+    private void ClearDeviceSelection()
+    {
+        foreach (var d in DiscoveredDevices)
+            d.IsSelected = false;
     }
 
     public bool CanSendFiles() =>
         SelectedFiles.Count > 0
-        && GetRecipientTargets().Count > 0
-        && int.TryParse(Port, out int p) && p > 0 && p <= 65535
+        && DiscoveredDevices.Any(d => d.IsSelected)
         && !IsSending;
 
     [RelayCommand(CanExecute = nameof(CanSendFiles))]
     private async Task SendFiles(Window? window)
     {
-        var recipients = GetRecipientTargets();
-        if (recipients.Count == 0)
+        var devices = GetSelectedDevices();
+        if (devices.Count == 0)
         {
-            Status = "Enter one or more receiver IP addresses";
-            return;
-        }
-
-        if (!int.TryParse(Port, out int port) || port <= 0 || port > 65535)
-        {
-            Status = "Invalid port number!";
+            Status = "Select one or more receiver devices";
             return;
         }
 
@@ -546,110 +573,198 @@ public partial class MainWindowViewModel : ObservableObject
         Progress = 0;
         CurrentFileName = "";
         CurrentFileProgress = "";
+        _sendCompletedBytes = 0;
+        _sendTotalBytes = 0;
+        foreach (var f in SelectedFiles)
+        {
+            if (File.Exists(f))
+                _sendTotalBytes += new FileInfo(f).Length;
+        }
+        _sendCts = new CancellationTokenSource();
+        var sendToken = _sendCts.Token;
 
         try
         {
-            for (int i = 0; i < recipients.Count; i++)
-            {
-                var recipient = recipients[i];
-                Progress = (i * 100.0) / recipients.Count;
-                Status = $"[{i + 1}/{recipients.Count}] Connecting to {recipient}:{port}...";
+            ThreadPool.GetMinThreads(out int minWorker, out int minIocp);
+            ThreadPool.SetMinThreads(Math.Max(minWorker, devices.Count * 4), minIocp);
 
+            var failures = new List<string>();
+            var sendTasks = devices.Select(async (device, idx) =>
+            {
                 try
                 {
-                    await SendFilesToRecipientAsync(recipient, port, i, recipients.Count);
-                    Status = $"[{i + 1}/{recipients.Count}] Sent to {recipient}";
+                    await SendToRecipientAsync(device.IpAddress, int.Parse(device.Port), idx, devices.Count, sendToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {
-                    Status = $"[{i + 1}/{recipients.Count}] Failed to send to {recipient}: {ex.Message}";
+                    lock (failures) failures.Add($"{device.IpAddress}:{device.Port}: {ex.Message}");
                 }
-            }
+            });
+            await Task.WhenAll(sendTasks);
 
-            Status = "Finished sending to all receivers";
-            Progress = 100;
-            CurrentFileName = "";
-            CurrentFileProgress = "";
+            if (failures.Count == 0)
+            {
+                Status = "Finished sending to all receivers";
+                Progress = 100;
+                CurrentFileName = "";
+                CurrentFileProgress = "";
+            }
+            else
+            {
+                Status = $"Send completed with errors: {string.Join("; ", failures)}";
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            Status = "Sending cancelled";
         }
         finally
         {
             IsSending = false;
+            _sendCts?.Dispose();
+            _sendCts = null;
         }
     }
 
-    private async Task SendFilesToRecipientAsync(string recipientIp, int port, int recipientIndex, int recipientCount)
+    [RelayCommand]
+    private void StopSending()
     {
+        _sendCts?.Cancel();
+        Status = "Stopping send...";
+    }
+
+    private string GetSendFileName(string filePath)
+    {
+        if (SelectedFolderRoot != null && filePath.StartsWith(SelectedFolderRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            var relative = filePath.Substring(SelectedFolderRoot.Length)
+                .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (relative.Length > 0)
+            {
+                string folderName = Path.GetFileName(SelectedFolderRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                return Path.Combine(folderName, relative);
+            }
+        }
+        return Path.GetFileName(filePath);
+    }
+
+    private void ReportSendProgress(long sentDelta, long filePos, long fileSize, int recipientIdx, int recipientCount, string fileName)
+    {
+        long completed;
+        lock (_sendProgressLock)
+        {
+            _sendCompletedBytes += sentDelta;
+            completed = _sendCompletedBytes;
+        }
+        double pct = Math.Min(completed * 100.0 / (_sendTotalBytes * recipientCount), 100.0);
+        Progress = Math.Round(pct, 1);
+        CurrentFileProgress = $"Receiver {recipientIdx + 1}/{recipientCount}: {FormatFileSize(filePos)} / {FormatFileSize(fileSize)}";
+        Status = $"[{recipientIdx + 1}/{recipientCount}] Sending {fileName} ({filePos * 100.0 / fileSize:F1}%)";
+    }
+
+    private async Task SendToRecipientAsync(string recipientIp, int port, int recipientIndex, int recipientCount, CancellationToken ct)
+    {
+        try
+        {
+            Status = $"[{recipientIndex + 1}/{recipientCount}] Connecting to {recipientIp}:{port}...";
+            await SendFilesToRecipientAsync(recipientIp, port, recipientIndex, recipientCount, ct);
+            Status = $"[{recipientIndex + 1}/{recipientCount}] Sent to {recipientIp}";
+        }
+        catch (OperationCanceledException)
+        {
+            Status = $"Cancelled sending to {recipientIp}";
+            throw;
+        }
+    }
+
+    private async Task SendFilesToRecipientAsync(string recipientIp, int port, int recipientIndex, int recipientCount, CancellationToken ct = default)
+    {
+        ct.ThrowIfCancellationRequested();
+
         using var client = new TcpClient();
+        client.NoDelay = true;
+        client.LingerState = new LingerOption(true, 30);
         client.SendBufferSize = BufferSize;
         client.ReceiveBufferSize = BufferSize;
-        await client.ConnectAsync(recipientIp, port);
+        client.Client.SendTimeout = NetworkTimeoutMs;
+        await client.ConnectAsync(recipientIp, port, ct);
 
         await using var stream = client.GetStream();
 
-        Status = $"[{recipientIndex + 1}/{recipientCount}] Connected to {recipientIp}. Sending files...";
-
         int totalFiles = SelectedFiles.Count;
+        var fileEntries = new (string Path, string Name, long Size)[totalFiles];
         long totalBytes = 0;
 
-        foreach (var f in SelectedFiles)
+        for (int i = 0; i < totalFiles; i++)
         {
-            if (File.Exists(f))
-                totalBytes += new FileInfo(f).Length;
+            string path = SelectedFiles[i];
+            if (!File.Exists(path))
+            {
+                fileEntries[i] = (null!, null!, 0);
+                continue;
+            }
+            var info = new FileInfo(path);
+            long size = info.Length;
+            fileEntries[i] = (path, info.Name, size);
+            totalBytes += size;
         }
 
         if (totalBytes == 0)
             throw new InvalidOperationException("No selected files could be sent.");
 
-        long sentTotal = 0;
-        double recipientBaseProgress = (recipientIndex * 100.0) / recipientCount;
-
-        for (int i = 0; i < totalFiles; i++)
+        for (int fileIdx = 0; fileIdx < totalFiles; fileIdx++)
         {
-            string filePath = SelectedFiles[i];
+            ct.ThrowIfCancellationRequested();
 
-            if (!File.Exists(filePath))
-            {
-                Status = $"[{recipientIndex + 1}/{recipientCount}] File not found: {Path.GetFileName(filePath)}";
+            var (filePath, _, fileSize) = fileEntries[fileIdx];
+            if (filePath == null)
                 continue;
-            }
 
-            string fileName = Path.GetFileName(filePath);
-            long fileSize = new FileInfo(filePath).Length;
+            string sendName = GetSendFileName(filePath);
+            CurrentFileName = sendName;
 
-            CurrentFileName = fileName;
+            byte[] fileNameBytes = Encoding.UTF8.GetBytes(sendName);
+            byte[] header = new byte[4 + fileNameBytes.Length + 8];
+            BitConverter.GetBytes(fileNameBytes.Length).CopyTo(header, 0);
+            fileNameBytes.CopyTo(header, 4);
+            BitConverter.GetBytes(fileSize).CopyTo(header, 4 + fileNameBytes.Length);
 
-            byte[] fileNameBytes = Encoding.UTF8.GetBytes(fileName);
-            byte[] fileNameLengthBytes = BitConverter.GetBytes(fileNameBytes.Length);
-            byte[] fileSizeBytes = BitConverter.GetBytes(fileSize);
+            await stream.WriteAsync(header, ct);
 
-            await stream.WriteAsync(fileNameLengthBytes);
-            await stream.WriteAsync(fileNameBytes);
-            await stream.WriteAsync(fileSizeBytes);
-
-            await using var fileStream = File.OpenRead(filePath);
+            await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, BufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
             byte[] buffer = new byte[BufferSize];
-            long sent = 0;
             int bytesRead;
-
-            while ((bytesRead = await fileStream.ReadAsync(buffer)) > 0)
+            long readSoFar = 0;
+            while ((bytesRead = await fileStream.ReadAsync(buffer, ct)) > 0)
             {
-                await stream.WriteAsync(buffer.AsMemory(0, bytesRead));
-                sent += bytesRead;
-                sentTotal += bytesRead;
-
-                double fileProgress = (sent * 100.0) / fileSize;
-                double totalProgress = recipientBaseProgress + ((sentTotal * 100.0) / totalBytes / recipientCount);
-
-                Progress = totalProgress;
-                CurrentFileProgress = $"Receiver {recipientIndex + 1}/{recipientCount}: {FormatFileSize(sent)} / {FormatFileSize(fileSize)}";
-                Status = $"[{recipientIndex + 1}/{recipientCount}] Sending {fileName} to {recipientIp} ({fileProgress:F1}%)";
+                ct.ThrowIfCancellationRequested();
+                await stream.WriteAsync(buffer.AsMemory(0, bytesRead), ct);
+                readSoFar += bytesRead;
+                ReportSendProgress(bytesRead, readSoFar, fileSize, recipientIndex, recipientCount, sendName);
             }
-
-            Status = $"[{recipientIndex + 1}/{recipientCount}] Sent {i + 1}/{totalFiles}: {fileName} to {recipientIp}";
         }
 
         byte[] endMarker = BitConverter.GetBytes((int)0);
-        await stream.WriteAsync(endMarker);
+        await stream.WriteAsync(endMarker, ct);
+        await stream.FlushAsync(ct);
+
+        using var readCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        readCts.CancelAfter(TimeSpan.FromSeconds(30));
+        try
+        {
+            byte[] ackBuf = new byte[1];
+            int ackRead = await ReadExactAsync(stream, ackBuf, readCts.Token);
+            if (ackRead == 0 || ackBuf[0] != 0xFF)
+                throw new IOException("Receiver did not acknowledge transfer");
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            throw new TimeoutException("Timed out waiting for receiver acknowledgment");
+        }
     }
 
     [RelayCommand]
@@ -780,8 +895,10 @@ public partial class MainWindowViewModel : ObservableObject
     {
         try
         {
+            client.NoDelay = true;
             client.ReceiveBufferSize = BufferSize;
             client.SendBufferSize = BufferSize;
+            client.Client.ReceiveTimeout = NetworkTimeoutMs;
 
             var remoteEndPoint = (IPEndPoint?)client.Client.RemoteEndPoint;
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
@@ -801,26 +918,67 @@ public partial class MainWindowViewModel : ObservableObject
                 int fileNameLength = BitConverter.ToInt32(lengthBuffer, 0);
 
                 if (fileNameLength == 0)
+                {
+                    try { await stream.WriteAsync(new byte[] { 0xFF }, ct); }
+                    catch { }
                     break;
+                }
+
+                if (fileNameLength < 0 || fileNameLength > 4096)
+                {
+                    Status = $"Invalid file name length: {fileNameLength}";
+                    break;
+                }
 
                 byte[] fileNameBuffer = new byte[fileNameLength];
-                await ReadExactAsync(stream, fileNameBuffer, ct);
+                int fileNameRead = await ReadExactAsync(stream, fileNameBuffer, ct);
+                if (fileNameRead != fileNameLength)
+                {
+                    Status = "Connection closed while reading file name";
+                    break;
+                }
+
                 string fileName = Encoding.UTF8.GetString(fileNameBuffer);
 
+                string[] pathParts = fileName.Split(new[] { '/', '\\' }, StringSplitOptions.None);
+                for (int i = 0; i < pathParts.Length; i++)
+                {
+                    foreach (char c in Path.GetInvalidFileNameChars())
+                        pathParts[i] = pathParts[i].Replace(c, '_');
+                }
+                fileName = string.Join(Path.DirectorySeparatorChar, pathParts);
+
                 byte[] sizeBuffer = new byte[8];
-                await ReadExactAsync(stream, sizeBuffer, ct);
+                int sizeRead = await ReadExactAsync(stream, sizeBuffer, ct);
+                if (sizeRead != 8)
+                {
+                    Status = "Connection closed while reading file size";
+                    break;
+                }
+
                 long fileSize = BitConverter.ToInt64(sizeBuffer, 0);
+
+                if (fileSize < 0)
+                {
+                    Status = $"Invalid file size: {fileSize}";
+                    break;
+                }
 
                 CurrentFileName = fileName;
 
                 string savePath = Path.Combine(DownloadFolder, fileName);
+                string? saveDir = Path.GetDirectoryName(savePath);
+                if (!string.IsNullOrEmpty(saveDir) && !Directory.Exists(saveDir))
+                    Directory.CreateDirectory(saveDir);
+
                 string originalPath = savePath;
                 int counter = 1;
                 while (File.Exists(savePath))
                 {
                     string name = Path.GetFileNameWithoutExtension(originalPath);
                     string ext = Path.GetExtension(originalPath);
-                    savePath = Path.Combine(DownloadFolder, $"{name} ({counter}){ext}");
+                    string newName = $"{name} ({counter}){ext}";
+                    savePath = Path.Combine(saveDir ?? DownloadFolder, newName);
                     counter++;
                 }
 
@@ -829,15 +987,16 @@ public partial class MainWindowViewModel : ObservableObject
                     Status = $"Receiving: {fileName} ({FormatFileSize(fileSize)})";
                 });
 
-                await using var fileStream = File.Create(savePath);
+                await using var fileStream = new FileStream(savePath, FileMode.Create, FileAccess.Write, FileShare.None, BufferSize, FileOptions.Asynchronous);
                 byte[] buffer = new byte[BufferSize];
                 long received = 0;
+                bool complete = true;
 
                 while (received < fileSize)
                 {
                     int toRead = (int)Math.Min(buffer.Length, fileSize - received);
                     int bytesRead = await stream.ReadAsync(buffer.AsMemory(0, toRead));
-                    if (bytesRead == 0) break;
+                    if (bytesRead == 0) { complete = false; break; }
 
                     await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
                     received += bytesRead;
@@ -850,6 +1009,18 @@ public partial class MainWindowViewModel : ObservableObject
                     {
                         Progress = fileProgress;
                     });
+                }
+
+                if (!complete || received != fileSize)
+                {
+                    fileStream.Close();
+                    if (File.Exists(savePath))
+                        File.Delete(savePath);
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        Status = $"Incomplete transfer: {fileName} was discarded";
+                    });
+                    break;
                 }
 
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
@@ -926,41 +1097,35 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand]
     private async Task TestConnection()
     {
-        var recipients = GetRecipientTargets();
-        if (recipients.Count == 0)
+        var selectedDevices = GetSelectedDevices();
+        if (selectedDevices.Count == 0)
         {
-            ConnectionTestResult = "Enter one or more receiver IP addresses";
-            return;
-        }
-
-        if (!int.TryParse(Port, out int port) || port <= 0 || port > 65535)
-        {
-            ConnectionTestResult = "Invalid port";
+            ConnectionTestResult = "Select one or more receiver devices";
             return;
         }
 
         ConnectionTestResult = "Testing receivers...";
 
         var results = new List<string>();
-        foreach (var recipient in recipients)
+        foreach (var device in selectedDevices)
         {
             try
             {
                 using var client = new TcpClient();
-                var connectTask = client.ConnectAsync(recipient, port);
+                var connectTask = client.ConnectAsync(device.IpAddress, int.Parse(device.Port));
 
                 if (await Task.WhenAny(connectTask, Task.Delay(3000)) == connectTask)
                 {
-                    results.Add($"OK - connected to {recipient}:{port}");
+                    results.Add($"OK - connected to {device.DisplayName}");
                 }
                 else
                 {
-                    results.Add($"Timeout - port not open on {recipient}:{port}");
+                    results.Add($"Timeout - {device.DisplayName}");
                 }
             }
             catch (Exception ex)
             {
-                results.Add($"Failed - {recipient}:{port}: {ex.Message}");
+                results.Add($"Failed - {device.DisplayName}: {ex.Message}");
             }
         }
 
@@ -971,6 +1136,7 @@ public partial class MainWindowViewModel : ObservableObject
     private void ClearFiles()
     {
         SelectedFiles.Clear();
+        SelectedFolderRoot = null;
         Status = "Files cleared";
     }
 

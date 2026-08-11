@@ -293,7 +293,7 @@ public partial class MainWindowViewModel : ObservableObject
             }
             catch (OperationCanceledException)
             {
-                throw;
+                return;
             }
             catch (SocketException)
             {

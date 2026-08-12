@@ -76,17 +76,6 @@ public partial class MainWindowViewModel : ObservableObject
     private bool _isScanning;
 
     [ObservableProperty]
-    private DiscoveredDevice? _selectedDevice;
-
-    [ObservableProperty]
-    private string _selectedDeviceIp = "";
-
-    partial void OnSelectedDeviceChanged(DiscoveredDevice? value)
-    {
-        SelectedDeviceIp = value?.IpAddress ?? "";
-    }
-
-    [ObservableProperty]
     private int _selectedTabIndex;
 
     [ObservableProperty]
@@ -273,23 +262,15 @@ public partial class MainWindowViewModel : ObservableObject
     public bool CanSendFiles() =>
         SelectedFiles.Count > 0
         && !IsSending
-        && (!string.IsNullOrWhiteSpace(SelectedDeviceIp) || DiscoveredDevices.Any(d => d.IsSelected));
+        && DiscoveredDevices.Any(d => d.IsSelected);
 
     [RelayCommand(CanExecute = nameof(CanSendFiles))]
     private async Task SendFiles(Window? window)
     {
         var devices = DiscoveredDevices.Where(d => d.IsSelected).ToList();
-        if (devices.Count == 0 && !string.IsNullOrWhiteSpace(SelectedDeviceIp))
-        {
-            var ips = SelectedDeviceIp.Split(new[] { ',', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(ip => ip.Trim())
-                .Where(ip => !string.IsNullOrWhiteSpace(ip))
-                .ToList();
-            devices = ips.Select(ip => new DiscoveredDevice { IpAddress = ip, Port = Port, IsSelected = true }).ToList();
-        }
         if (devices.Count == 0)
         {
-            Status = "Select a device or enter at least one IP address";
+            Status = "Select one or more receiver devices";
             return;
         }
 
@@ -406,16 +387,6 @@ public partial class MainWindowViewModel : ObservableObject
     {
         foreach (var d in DiscoveredDevices)
             d.IsSelected = false;
-    }
-
-    [RelayCommand]
-    private void SelectDevice(DiscoveredDevice? device)
-    {
-        if (device != null)
-        {
-            SelectedDevice = device;
-            Status = $"Selected: {device.DisplayName}";
-        }
     }
 
     [RelayCommand]

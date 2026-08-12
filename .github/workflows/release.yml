@@ -191,9 +191,19 @@ jobs:
           VERSION: ${{ needs.prepare.outputs.version }}
           RUNTIME: ${{ matrix.rid }}
         run: |
-          # Free up space before DMG creation
-          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL /Library/Caches/Homebrew 2>/dev/null || true
-          # Create temp dir in workspace (more space)
+          # Free up space aggressively before DMG creation.
+          # hdiutil needs temp space for an uncompressed DMG before compressing.
+          sudo rm -rf \
+            /usr/local/lib/android \
+            /usr/local/share/vcpkg \
+            /usr/share/dotnet \
+            /opt/ghc \
+            /opt/hostedtoolcache \
+            /Library/Caches/Homebrew \
+            "$HOME/Library/Caches/Xcode" \
+            "$HOME/Library/Developer/Xcode/DerivedData" \
+            "$HOME/Library/Developer/CoreSimulator/Caches" \
+            2>/dev/null || true
           export TMPDIR="$GITHUB_WORKSPACE/tmp"
           mkdir -p "$TMPDIR"
           df -h /

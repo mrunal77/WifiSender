@@ -64,6 +64,13 @@ EOF
 
 cp -R "$APP_BUNDLE" "$DMG_ROOT/"
 ln -s /Applications "$DMG_ROOT/Applications"
-hdiutil create -volname "$APP_NAME $VERSION" -srcfolder "$DMG_ROOT" -ov -format UDZO "$OUTPUT"
+
+# Use ULFO (lzip) format — compressed DMG without needing a separate
+# uncompressed temp image, saving ~50% disk space during creation.
+hdiutil create \
+  -volname "$APP_NAME $VERSION" \
+  -srcfolder "$DMG_ROOT" \
+  -ov -format ULFO \
+  "$OUTPUT"
 
 echo "Created $OUTPUT"

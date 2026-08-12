@@ -81,28 +81,28 @@ public sealed class FileTransferSession : IAsyncDisposable
             switch (type)
             {
                 case FrameType.CapabilityAck:
-                {
-                    var ack = new byte[CheckLen(type, len)];
-                    await _reader.ReadPayloadAsync(ack, ct).ConfigureAwait(false);
-                    var (flags, chunk, algo, _) = CapabilityCodec.Decode(ack, null);
-                    if (algo != HashAlgorithmId.Sha256)
-                        throw new TransferException("Peer does not support SHA-256 hashing.");
-                    var required = RequiredFlags();
-                    if ((flags & required) != required)
-                        throw new TransferException($"Peer rejected required capabilities (negotiated {flags}).");
-                    _negotiatedFlags = flags;
-                    _negotiatedChunk = Math.Clamp(chunk, 1, Math.Max(1, _options.ChunkSize));
-                    break;
-                }
+                    {
+                        var ack = new byte[CheckLen(type, len)];
+                        await _reader.ReadPayloadAsync(ack, ct).ConfigureAwait(false);
+                        var (flags, chunk, algo, _) = CapabilityCodec.Decode(ack, null);
+                        if (algo != HashAlgorithmId.Sha256)
+                            throw new TransferException("Peer does not support SHA-256 hashing.");
+                        var required = RequiredFlags();
+                        if ((flags & required) != required)
+                            throw new TransferException($"Peer rejected required capabilities (negotiated {flags}).");
+                        _negotiatedFlags = flags;
+                        _negotiatedChunk = Math.Clamp(chunk, 1, Math.Max(1, _options.ChunkSize));
+                        break;
+                    }
                 case FrameType.Ack:
-                {
-                    var ack = new byte[CheckLen(type, len)];
-                    await _reader.ReadPayloadAsync(ack, ct).ConfigureAwait(false);
-                    var (status, message) = SessionCodec.DecodeAck(ack);
-                    if (status == AckStatus.Unauthorized)
-                        throw new UnauthorizedAccessException(message ?? "Pairing rejected.");
-                    throw new TransferException($"Peer rejected the session: {message}");
-                }
+                    {
+                        var ack = new byte[CheckLen(type, len)];
+                        await _reader.ReadPayloadAsync(ack, ct).ConfigureAwait(false);
+                        var (status, message) = SessionCodec.DecodeAck(ack);
+                        if (status == AckStatus.Unauthorized)
+                            throw new UnauthorizedAccessException(message ?? "Pairing rejected.");
+                        throw new TransferException($"Peer rejected the session: {message}");
+                    }
                 default:
                     throw new TransferException($"Unexpected frame {type} during handshake.");
             }

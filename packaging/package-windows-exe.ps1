@@ -5,7 +5,10 @@ $Project = Join-Path $Root "WifiSender.csproj"
 $AppName = "WifiSender"
 $Configuration = if ($env:CONFIGURATION) { $env:CONFIGURATION } else { "Release" }
 $Runtime = if ($env:RUNTIME) { $env:RUNTIME } else { "win-x64" }
-$Version = if ($env:VERSION) { $env:VERSION } else { (& dotnet msbuild $Project -getProperty:Version).Trim() }
+$Version = if ($env:VERSION) { $env:VERSION } else {
+    $VersionFile = Join-Path $Root "dist/version.txt"
+    if (Test-Path $VersionFile) { (Get-Content $VersionFile -Raw).Trim() } else { "1.0.0" }
+}
 $PublishDir = Join-Path $Root "dist/publish/$Runtime"
 $OutputDir = Join-Path $Root "dist"
 $PublishedExe = Join-Path $PublishDir "$AppName.exe"

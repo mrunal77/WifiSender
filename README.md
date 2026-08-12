@@ -78,3 +78,26 @@ script via Polkit (pkexec).
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Releases
+
+Prebuilt installers are published as **GitHub Releases**:
+
+| Platform | Package |
+|----------|---------|
+| Windows (x64) | `WifiSender-<version>-win-x64.exe` (+ `.zip`) |
+| Linux (x64) | `WifiSender-<version>-linux-x64.AppImage` |
+| macOS (Apple Silicon) | `WifiSender-<version>-osx-arm64.dmg` |
+| macOS (Intel) | `WifiSender-<version>-osx-x64.dmg` |
+
+Each release also ships `SHA256SUMS.txt`, a `release-manifest.json`, and an SPDX
+`sbom.spdx.json`. All artifacts carry **build provenance attestations** (GitHub
+Artifact Attestations) — verify them with:
+
+```bash
+gh attestation verify <asset> --repo <owner>/WifiSender
+```
+
+Versions are derived from git tags via MinVer — never edited by hand. To cut a
+release, use the **Release** workflow (Actions → Release → Run workflow). See
+[docs/release-process.md](docs/release-process.md) for details.

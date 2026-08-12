@@ -1,0 +1,410 @@
+name: Release
+
+# Manual release pipeline. A single run:
+#   1. prepares  - computes the next version, creates the git tag (unless dry run)
+#   2. package   - builds + validates + attests release packages per platform
+#   3. finalize  - aggregates packages, checksums, SBOM, release notes, then
+#                  creates the GitHub release (unless dry run)
+#
+# Never triggered by pushes/tags, so tagging cannot recurse into this workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump (ignored when "version" is set)'
+        required: false
+        default: patch
+        type: choice
+        options: [patch, minor, major, prerelease]
+      version:
+        description: 'Explicit version, e.g. 1.4.3 or 1.5.0-rc.1. Overrides version_type.'
+        required: false
+        type: string
+      platforms:
+        description: 'Platforms to build'
+        required: false
+        default: all
+        type: choice
+        options: [all, windows, linux, macos]
+      dry_run:
+        description: 'Dry run: build and verify everything but do not tag or publish.'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  # One release at a time; a queued run waits instead of cancelling.
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+env:
+  DOTNET_NOLOGO: true
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────
+  prepare:
+    name: Prepare release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+      is_dry_run: ${{ steps.version.outputs.is_dry_run }}
+      build_ref: ${{ steps.version.outputs.build_ref }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Compute version and create tag
+        id: version
+        env:
+          VERSION_TYPE: ${{ inputs.version_type }}
+          EXPLICIT_VERSION: ${{ inputs.version }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "$EXPLICIT_VERSION" ]; then
+            VERSION="$EXPLICIT_VERSION"
+          else
+            VERSION="$(scripts/next-version.sh "$VERSION_TYPE")"
+          fi
+
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid version '$VERSION'" >&2
+            exit 1
+          fi
+
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "::error::Tag v$VERSION already exists. Refusing to overwrite." >&2
+            exit 1
+          fi
+
+          echo "Releasing version: $VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" == *-* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "is_dry_run=$DRY_RUN" >> "$GITHUB_OUTPUT"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "build_ref=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "v$VERSION" -m "Release v$VERSION"
+            git push origin "v$VERSION"
+            echo "build_ref=refs/tags/v$VERSION" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ─────────────────────────────────────────────────────────────────────────
+  matrix-setup:
+    name: Compute build matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Build matrix from platforms input
+        id: matrix
+        run: |
+          python3 - > /tmp/release-matrix.json <<'PYEOF'
+          import json
+          platforms = "${{ inputs.platforms }}"
+          all_platforms = [
+              {"name": "windows-x64", "os": "windows-latest", "rid": "win-x64", "build_os": "windows"},
+              {"name": "linux-x64", "os": "ubuntu-latest", "rid": "linux-x64", "build_os": "linux"},
+              {"name": "macos-arm64", "os": "macos-latest", "rid": "osx-arm64", "build_os": "macos"},
+              {"name": "macos-x64", "os": "macos-latest", "rid": "osx-x64", "build_os": "macos"},
+          ]
+          selected = all_platforms if platforms == "all" else [p for p in all_platforms if p["build_os"] == platforms]
+          print(json.dumps(selected))
+          PYEOF
+          MATRIX="$(cat /tmp/release-matrix.json)"
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "Build matrix: $MATRIX"
+
+  # ─────────────────────────────────────────────────────────────────────────
+  package:
+    name: Package (${{ matrix.name }})
+    needs: [prepare, matrix-setup]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.matrix-setup.outputs.matrix) }}
+    steps:
+      - name: Checkout ${{ needs.prepare.outputs.build_ref }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.build_ref }}
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Package Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          & packaging/package-windows-exe.ps1
+          $exe = "dist/WifiSender-$env:VERSION-win-x64.exe"
+          if (-not (Test-Path $exe)) { throw "Expected $exe" }
+          Compress-Archive -Path $exe -DestinationPath "dist/WifiSender-$env:VERSION-win-x64.zip" -Force
+
+      - name: Package Linux AppImage
+        if: runner.os == 'Linux'
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          bash packaging/package-linux-appimage.sh
+          test -s "dist/WifiSender-$VERSION-linux-x64.AppImage"
+
+      - name: Package macOS DMG
+        if: runner.os == 'macOS'
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          RUNTIME: ${{ matrix.rid }}
+        run: |
+          bash packaging/package-macos-dmg.sh
+          test -s "dist/WifiSender-$VERSION-$RUNTIME.dmg"
+          hdiutil verify "dist/WifiSender-$VERSION-$RUNTIME.dmg"
+
+      - name: Validate Windows packages
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          $exe = "dist/WifiSender-$env:VERSION-win-x64.exe"
+          $zip = "dist/WifiSender-$env:VERSION-win-x64.zip"
+          if (-not (Test-Path $exe)) { throw "Missing $exe" }
+          if (-not (Test-Path $zip)) { throw "Missing $zip" }
+          $bytes = [System.IO.File]::ReadAllBytes($exe)
+          if ($bytes.Length -lt 100000) { throw "exe unexpectedly small" }
+          if (-not ($bytes[0] -eq 0x4D -and $bytes[1] -eq 0x5A)) { throw "not a PE executable" }
+          Write-Host "OK: $((Get-Item $exe).Length) bytes, PE header present"
+
+      - name: Validate Linux package
+        if: runner.os == 'Linux'
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          appimage="dist/WifiSender-$VERSION-linux-x64.AppImage"
+          test -x "$appimage"
+          file "$appimage"
+          unzip -l "$appimage" | grep -q "AppRun"
+          echo "OK: AppImage contains AppRun and is executable"
+
+      - name: Validate macOS package
+        if: runner.os == 'macOS'
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          RUNTIME: ${{ matrix.rid }}
+        run: |
+          dmg="dist/WifiSender-$VERSION-$RUNTIME.dmg"
+          test -s "$dmg"
+          hdiutil verify "$dmg"
+          echo "OK: DMG verified"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/WifiSender-${{ needs.prepare.outputs.version }}-${{ matrix.rid }}.*
+
+      - name: Upload packages artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: packages-${{ matrix.name }}
+          path: dist/WifiSender-${{ needs.prepare.outputs.version }}-${{ matrix.rid }}.*
+          if-no-files-found: error
+
+  # ─────────────────────────────────────────────────────────────────────────
+  finalize:
+    name: Finalize release
+    needs: [prepare, package]
+    runs-on: ubuntu-latest
+    # Human approval gate: add reviewers to the "production-release"
+    # environment in repo settings. Auto-created if it does not exist.
+    environment: production-release
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout ${{ needs.prepare.outputs.build_ref }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.build_ref }}
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Download all packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: dist/release
+          merge-multiple: true
+
+      - name: Generate SHA256SUMS.txt
+        run: |
+          cd dist/release
+          sha256sum WifiSender-* > SHA256SUMS.txt
+          echo "Packages:"
+          ls -la
+          echo
+          cat SHA256SUMS.txt
+
+      - name: Generate release manifest
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          IS_PRERELEASE: ${{ needs.prepare.outputs.is_prerelease }}
+        run: |
+          python3 - <<'EOF'
+          import datetime, hashlib, json, os
+          version = os.environ["VERSION"]
+          entries = {}
+          for f in sorted(os.listdir("dist/release")):
+              if f == "SHA256SUMS.txt":
+                  continue
+              p = os.path.join("dist/release", f)
+              if os.path.isfile(p):
+                  entries[f] = hashlib.sha256(open(p, "rb").read()).hexdigest()
+          manifest = {
+              "schema_version": "1.0",
+              "project": "WifiSender",
+              "version": version,
+              "prerelease": os.environ["IS_PRERELEASE"] == "true",
+              "published_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "artifacts": entries,
+          }
+          with open("dist/release/release-manifest.json", "w") as fh:
+              json.dump(manifest, fh, indent=2)
+          print("Wrote dist/release/release-manifest.json")
+          EOF
+
+      - name: Generate SBOM
+        run: |
+          dotnet tool install Microsoft.Sbom.DotNetTool --tool-path /tmp/sbom-tool
+          dotnet build WifiSender.csproj -c Release -o /tmp/sbom-build
+          mkdir -p /tmp/sbom-manifest
+          /tmp/sbom-tool/sbom-tool generate \
+            -b /tmp/sbom-build \
+            -bc "$GITHUB_WORKSPACE" \
+            -m /tmp/sbom-manifest \
+            -ps WifiSender \
+            -pn WifiSender \
+            -pv "${{ needs.prepare.outputs.version }}" \
+            -V Information
+          cp /tmp/sbom-manifest/_manifest/spdx_2.2/manifest.spdx.json dist/release/sbom.spdx.json
+          test -s dist/release/sbom.spdx.json
+
+      - name: Generate release notes
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # Previous stable tag (highest vX.Y.Z, excluding prereleases and current).
+          PREV="$(git tag --list 'v*' --sort=-version:refname | grep -v -- '-' | grep -v "^$TAG$" | head -n 1 || true)"
+
+          BODY="/tmp/release-body.md"
+          {
+            echo "# WifiSender $TAG"
+            echo
+            echo "## Downloads"
+            echo
+            echo "| Platform | Artifact |"
+            echo "|----------|----------|"
+            echo "| Windows (x64) | \`WifiSender-$VERSION-win-x64.exe\` (+ \`.zip\`) |"
+            echo "| Linux (x64) | \`WifiSender-$VERSION-linux-x64.AppImage\` |"
+            echo "| macOS (Apple Silicon) | \`WifiSender-$VERSION-osx-arm64.dmg\` |"
+            echo "| macOS (Intel) | \`WifiSender-$VERSION-osx-x64.dmg\` |"
+            echo
+            echo "All packages carry build provenance attestations (GitHub Artifact Attestations)."
+            echo
+            echo "## Checksums"
+            echo
+            echo '\`\`\`'
+            cat dist/release/SHA256SUMS.txt
+            echo '\`\`\`'
+            echo
+            echo "## SBOM"
+            echo
+            echo "\`sbom.spdx.json\` (SPDX 2.2) lists the open-source components shipped in this release."
+            echo
+            scripts/release-notes.sh "$TAG" "$PREV"
+            echo
+            echo "## Install"
+            echo
+            echo "- **Windows**: download the \`.exe\` (or extract the \`.zip\`) and run it."
+            echo "- **Linux**: \`chmod +x WifiSender-$VERSION-linux-x64.AppImage\` and run it."
+            echo "- **macOS**: open the \`.dmg\` and drag **WifiSender** into *Applications*."
+          } > "$BODY"
+          echo "Release notes preview:"
+          cat "$BODY"
+
+      - name: Attest SBOM and manifest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist/release/sbom.spdx.json
+            dist/release/release-manifest.json
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-assets
+          path: |
+            dist/release/SHA256SUMS.txt
+            dist/release/release-manifest.json
+            dist/release/sbom.spdx.json
+
+      - name: Publish GitHub release
+        if: ${{ needs.prepare.outputs.is_dry_run != 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          IS_PRERELEASE: ${{ needs.prepare.outputs.is_prerelease }}
+        run: |
+          PRERELEASE_FLAG=""
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+          gh release create "$TAG" dist/release/* \
+            --title "WifiSender $TAG" \
+            --notes-file /tmp/release-body.md \
+            --verify-tag \
+            $PRERELEASE_FLAG
+
+      - name: Dry run report
+        if: ${{ needs.prepare.outputs.is_dry_run == 'true' }}
+        run: |
+          echo "DRY RUN - nothing was tagged or published."
+          echo
+          echo "Release assets prepared:"
+          ls -la dist/release

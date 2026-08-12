@@ -1,0 +1,32 @@
+version: 2
+updates:
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "UTC"
+    groups:
+      avalonia:
+        patterns:
+          - "Avalonia*"
+      minver:
+        patterns:
+          - "MinVer"
+    ignore:
+      # Runtime/UI framework major versions may need manual testing.
+      - dependency-name: "Avalonia"
+        update-types: [ "version-update:semver-major" ]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "08:00"
+      timezone: "UTC"
+    groups:
+      actions:
+        patterns:
+          - "*"

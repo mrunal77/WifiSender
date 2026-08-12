@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -112,6 +113,21 @@ public partial class MainWindowViewModel : ObservableObject
     private bool _isToastVisible;
 
     public string ThemeIcon => IsDarkTheme ? "🌙" : "☀️";
+
+    public string VersionText
+    {
+        get
+        {
+            var version = typeof(MainWindowViewModel).Assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+            if (string.IsNullOrEmpty(version))
+                return "";
+            var plusIndex = version.IndexOf('+');
+            if (plusIndex >= 0)
+                version = version[..plusIndex];
+            return $"v{version}";
+        }
+    }
 
     public IBrush NavBarBackground => IsDarkTheme ? Brushes.Transparent : Brushes.Transparent;
 

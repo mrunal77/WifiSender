@@ -10,7 +10,7 @@ RUNTIME="linux-x64"
 PUBLISH_DIR="$PUBLISH_BASE/$RUNTIME"
 APPIMAGE_DIR="$ROOT_DIR/dist/appimage/AppDir"
 TOOLS_DIR="$ROOT_DIR/dist/tools"
-OUTPUT="$ROOT_DIR/dist/$APP_NAME-$VERSION-x86_64.AppImage"
+OUTPUT="$ROOT_DIR/dist/$APP_NAME-$VERSION-linux-x64.AppImage"
 
 publish_runtime "$RUNTIME" "$PUBLISH_DIR"
 

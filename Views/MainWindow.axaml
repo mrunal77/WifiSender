@@ -57,7 +57,10 @@
             </Border>
             <StackPanel VerticalAlignment="Center">
               <TextBlock Text="WifiSender" Classes="HeroTitle"/>
-              <TextBlock Text="Fast WiFi File Sharing" Classes="HeroSubtitle"/>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="Fast WiFi File Sharing" Classes="HeroSubtitle"/>
+                <TextBlock Text="{Binding VersionText}" Classes="HeroSubtitle" Opacity="0.55"/>
+              </StackPanel>
             </StackPanel>
           </StackPanel>
 

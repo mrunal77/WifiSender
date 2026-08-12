@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build & verify (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history + tags so MinVer derives a stable version in CI.
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore WifiSender.sln
+
+      - name: Build
+        run: dotnet build WifiSender.sln -c Release --no-restore
+
+      - name: Format check
+        if: runner.os == 'Linux'
+        run: dotnet format WifiSender.sln --verify-no-changes --no-restore
+
+      - name: Test
+        run: dotnet test WifiSender.sln -c Release --no-build --no-restore
+
+      - name: Transfer engine loopback check (Linux)
+        if: runner.os == 'Linux'
+        run: dotnet run --project Engine/Bench -c Release -- 16 1024
+
+      - name: Validate single-file publish (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          dotnet publish WifiSender.csproj -c Release -r linux-x64 --self-contained true \
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:PublishTrimmed=false -o dist/ci-publish
+          test -x dist/ci-publish/WifiSender
+
+      - name: Validate single-file publish (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          dotnet publish WifiSender.csproj -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:PublishTrimmed=false -o dist/ci-publish
+          if (-not (Test-Path "dist/ci-publish/WifiSender.exe")) { throw "published binary missing" }
+
+  version-script:
+    name: Version script sanity check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: next-version.sh must succeed for every bump type
+        run: |
+          for bump in patch minor major prerelease; do
+            version=$(scripts/next-version.sh "$bump")
+            echo "$bump -> $version"
+            if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+              echo "invalid version: $version"
+              exit 1
+            fi
+          done

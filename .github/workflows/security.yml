@@ -1,0 +1,70 @@
+name: Security
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  dependabot-auto:
+    name: Auto-merge Dependabot PRs
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Approve and enable auto-merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # Dependabot cannot approve its own PRs, so approve on its behalf.
+          gh pr review "$PR_NUMBER" --approve
+
+          # Detect major version bumps (e.g. 3.x -> 4.x) and leave those
+          # for human review; auto-merge everything else once CI passes.
+          TITLE="$(gh pr view "$PR_NUMBER" --json title --jq '.title')"
+          MAJOR_BUMP="$(python3 - "$TITLE" <<'PYEOF'
+          import re, sys
+          m = re.search(r'from\s+(\d+)\.\d+.*?to\s+(\d+)\.\d+', sys.argv[1])
+          if m and int(m.group(2)) > int(m.group(1)):
+              print("yes")
+          PYEOF
+          )"
+
+          PR_URL="${{ github.server_url }}/${{ github.repository }}/pull/$PR_NUMBER"
+          if [ "$MAJOR_BUMP" = "yes" ]; then
+            echo "Major version bump detected; leaving for human review."
+          else
+            gh pr merge "$PR_URL" --auto --squash
+          fi
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ csharp ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@c3400c2f38909e0dcf3c3a41f2030a8217be5d3e # v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@c3400c2f38909e0dcf3c3a41f2030a8217be5d3e # v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@c3400c2f38909e0dcf3c3a41f2030a8217be5d3e # v3

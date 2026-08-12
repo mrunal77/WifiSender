@@ -14,9 +14,10 @@ public sealed class ThemeService : IThemeService
     {
         if (Application.Current is { } app)
         {
-            bool isDark = app.RequestedThemeVariant == ThemeVariant.Dark;
-            app.RequestedThemeVariant = isDark ? ThemeVariant.Light : ThemeVariant.Dark;
-            ThemeChanged?.Invoke(this, new ThemeChangedEventArgs(!isDark));
+            bool isCurrentlyDark = app.ActualThemeVariant == ThemeVariant.Dark;
+            var targetTheme = isCurrentlyDark ? ThemeVariant.Light : ThemeVariant.Dark;
+            app.RequestedThemeVariant = targetTheme;
+            ThemeChanged?.Invoke(this, new ThemeChangedEventArgs(!isCurrentlyDark));
         }
         return Task.CompletedTask;
     }
@@ -25,7 +26,7 @@ public sealed class ThemeService : IThemeService
     {
         if (Application.Current is { } app)
         {
-            return app.RequestedThemeVariant == ThemeVariant.Dark ? "Dark" : "Light";
+            return app.ActualThemeVariant == ThemeVariant.Dark ? "Dark" : "Light";
         }
         return "Dark";
     }

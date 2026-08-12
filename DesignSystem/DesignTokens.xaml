@@ -1,74 +1,21 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:local="using:WifiSender.DesignSystem">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
   <!-- ═══════════════════════════════════════════════════════════════ -->
-  <!-- COLOR TOKENS (LIGHT & DARK ACCENTS)                             -->
+  <!-- STATIC BRAND GRADIENTS & ACCENTS                                -->
   <!-- ═══════════════════════════════════════════════════════════════ -->
-  <SolidColorBrush x:Key="Color.Primary" Color="#007AFF"/>
-  <SolidColorBrush x:Key="Color.PrimaryDark" Color="#0A84FF"/>
-  <SolidColorBrush x:Key="Color.PrimaryContainer" Color="#E0F2FE"/>
-  <SolidColorBrush x:Key="Color.OnPrimary" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="Color.BrandCyan" Color="#00C7BE"/>
+  <SolidColorBrush x:Key="Color.BrandBlue" Color="#007AFF"/>
+  <SolidColorBrush x:Key="Color.BrandPurple" Color="#AF52DE"/>
+  <SolidColorBrush x:Key="Color.BrandIndigo" Color="#5856D6"/>
+  <SolidColorBrush x:Key="Color.BrandPink" Color="#FF2D55"/>
+  <SolidColorBrush x:Key="Color.BrandEmerald" Color="#34C759"/>
+  <SolidColorBrush x:Key="Color.BrandAmber" Color="#FF9500"/>
+  <SolidColorBrush x:Key="Color.BrandRed" Color="#FF3B30"/>
 
-  <!-- Accents -->
-  <SolidColorBrush x:Key="Color.AccentCyan" Color="#00C7BE"/>
-  <SolidColorBrush x:Key="Color.AccentCyanDark" Color="#64D2FF"/>
-  <SolidColorBrush x:Key="Color.AccentPurple" Color="#AF52DE"/>
-  <SolidColorBrush x:Key="Color.AccentPurpleDark" Color="#BF5AF2"/>
-  <SolidColorBrush x:Key="Color.AccentIndigo" Color="#5856D6"/>
-  <SolidColorBrush x:Key="Color.AccentIndigoDark" Color="#5E5CE6"/>
-  <SolidColorBrush x:Key="Color.AccentPink" Color="#FF2D55"/>
-  <SolidColorBrush x:Key="Color.AccentPinkDark" Color="#FF375F"/>
-  <SolidColorBrush x:Key="Color.AccentOrange" Color="#FF9500"/>
-  <SolidColorBrush x:Key="Color.AccentOrangeDark" Color="#FF9F0A"/>
-
-  <!-- Light Mode Surface & Text -->
-  <SolidColorBrush x:Key="Color.Background" Color="#F8FAFC"/>
-  <SolidColorBrush x:Key="Color.Surface" Color="#FFFFFF"/>
-  <SolidColorBrush x:Key="Color.SurfaceVariant" Color="#F1F5F9"/>
-  <SolidColorBrush x:Key="Color.SurfaceElevated" Color="#FFFFFF"/>
-  <SolidColorBrush x:Key="Color.TextPrimary" Color="#0F172A"/>
-  <SolidColorBrush x:Key="Color.TextSecondary" Color="#475569"/>
-  <SolidColorBrush x:Key="Color.TextTertiary" Color="#94A3B8"/>
-  <SolidColorBrush x:Key="Color.TextOnPrimary" Color="#FFFFFF"/>
-  <SolidColorBrush x:Key="Color.Border" Color="#E2E8F0"/>
-  <SolidColorBrush x:Key="Color.BorderStrong" Color="#CBD5E1"/>
-
-  <!-- Dark Mode Surface & Text -->
-  <SolidColorBrush x:Key="Color.DarkBackground" Color="#0A0C10"/>
-  <SolidColorBrush x:Key="Color.DarkSurface" Color="#141720"/>
-  <SolidColorBrush x:Key="Color.DarkSurfaceVariant" Color="#1D2230"/>
-  <SolidColorBrush x:Key="Color.DarkSurfaceElevated" Color="#262C3D"/>
-  <SolidColorBrush x:Key="Color.DarkTextPrimary" Color="#F8FAFC"/>
-  <SolidColorBrush x:Key="Color.DarkTextSecondary" Color="#94A3B8"/>
-  <SolidColorBrush x:Key="Color.DarkTextTertiary" Color="#64748B"/>
-  <SolidColorBrush x:Key="Color.DarkBorder" Color="#2A3042"/>
-  <SolidColorBrush x:Key="Color.DarkBorderStrong" Color="#3B4359"/>
-
-  <!-- Statuses -->
-  <SolidColorBrush x:Key="Color.Success" Color="#34C759"/>
-  <SolidColorBrush x:Key="Color.SuccessDark" Color="#30D158"/>
-  <SolidColorBrush x:Key="Color.SuccessContainer" Color="#DCFCE7"/>
-  <SolidColorBrush x:Key="Color.Warning" Color="#FF9500"/>
-  <SolidColorBrush x:Key="Color.WarningDark" Color="#FF9F0A"/>
-  <SolidColorBrush x:Key="Color.WarningContainer" Color="#FEF3C7"/>
-  <SolidColorBrush x:Key="Color.Error" Color="#FF3B30"/>
-  <SolidColorBrush x:Key="Color.ErrorDark" Color="#FF453A"/>
-  <SolidColorBrush x:Key="Color.ErrorContainer" Color="#FEE2E2"/>
-  <SolidColorBrush x:Key="Color.Info" Color="#5AC8FA"/>
-  <SolidColorBrush x:Key="Color.InfoContainer" Color="#E0F2FE"/>
-
-  <!-- ═══════════════════════════════════════════════════════════════ -->
-  <!-- RICH GRADIENTS                                                  -->
-  <!-- ═══════════════════════════════════════════════════════════════ -->
   <LinearGradientBrush x:Key="Brush.PrimaryGradient" StartPoint="0%,0%" EndPoint="100%,100%">
     <GradientStop Color="#007AFF" Offset="0"/>
     <GradientStop Color="#5856D6" Offset="1"/>
-  </LinearGradientBrush>
-
-  <LinearGradientBrush x:Key="Brush.PrimaryGradientDark" StartPoint="0%,0%" EndPoint="100%,100%">
-    <GradientStop Color="#0A84FF" Offset="0"/>
-    <GradientStop Color="#5E5CE6" Offset="1"/>
   </LinearGradientBrush>
 
   <LinearGradientBrush x:Key="Brush.HeaderLogoGradient" StartPoint="0%,0%" EndPoint="100%,100%">
@@ -83,18 +30,8 @@
     <GradientStop Color="#BF5AF2" Offset="1"/>
   </LinearGradientBrush>
 
-  <LinearGradientBrush x:Key="Brush.AvatarGradient1" StartPoint="0%,0%" EndPoint="100%,100%">
-    <GradientStop Color="#38BDF8" Offset="0"/>
-    <GradientStop Color="#312E81" Offset="1"/>
-  </LinearGradientBrush>
-
-  <LinearGradientBrush x:Key="Brush.AvatarGradient2" StartPoint="0%,0%" EndPoint="100%,100%">
-    <GradientStop Color="#F43F5E" Offset="0"/>
-    <GradientStop Color="#881337" Offset="1"/>
-  </LinearGradientBrush>
-
   <!-- ═══════════════════════════════════════════════════════════════ -->
-  <!-- SPACING TOKENS                                                  -->
+  <!-- SPACING & RADIUS TOKENS                                         -->
   <!-- ═══════════════════════════════════════════════════════════════ -->
   <x:Double x:Key="Spacing.XS">4</x:Double>
   <x:Double x:Key="Spacing.SM">8</x:Double>
@@ -104,16 +41,93 @@
   <x:Double x:Key="Spacing.XXL">24</x:Double>
   <x:Double x:Key="Spacing.XXXL">32</x:Double>
 
-  <!-- ═══════════════════════════════════════════════════════════════ -->
-  <!-- RADIUS TOKENS                                                   -->
-  <!-- ═══════════════════════════════════════════════════════════════ -->
-  <x:Double x:Key="Radius.XS">4</x:Double>
-  <x:Double x:Key="Radius.SM">8</x:Double>
-  <x:Double x:Key="Radius.MD">12</x:Double>
-  <x:Double x:Key="Radius.LG">16</x:Double>
-  <x:Double x:Key="Radius.XL">20</x:Double>
   <CornerRadius x:Key="CornerRadius.Card">16</CornerRadius>
   <CornerRadius x:Key="CornerRadius.Inset">12</CornerRadius>
   <CornerRadius x:Key="CornerRadius.Pill">999</CornerRadius>
+
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <!-- THEME DICTIONARIES (LIGHT & DARK DYNAMIC RESOURCES)            -->
+  <!-- ═══════════════════════════════════════════════════════════════ -->
+  <ResourceDictionary.ThemeDictionaries>
+    <!-- ═══════════ LIGHT THEME ═══════════ -->
+    <ResourceDictionary x:Key="Light">
+      <SolidColorBrush x:Key="SurfaceBackground" Color="#F8FAFC"/>
+      <SolidColorBrush x:Key="SurfaceCard" Color="#FFFFFF"/>
+      <SolidColorBrush x:Key="SurfaceCardHover" Color="#F1F5F9"/>
+      <SolidColorBrush x:Key="SurfaceInset" Color="#F1F5F9"/>
+      <SolidColorBrush x:Key="SurfaceElevated" Color="#FFFFFF"/>
+
+      <SolidColorBrush x:Key="TextPrimary" Color="#0F172A"/>
+      <SolidColorBrush x:Key="TextSecondary" Color="#475569"/>
+      <SolidColorBrush x:Key="TextTertiary" Color="#94A3B8"/>
+      <SolidColorBrush x:Key="TextDisabled" Color="#CBD5E1"/>
+
+      <SolidColorBrush x:Key="BorderSubtle" Color="#E2E8F0"/>
+      <SolidColorBrush x:Key="BorderStrong" Color="#CBD5E1"/>
+
+      <SolidColorBrush x:Key="BrandPrimary" Color="#007AFF"/>
+      <SolidColorBrush x:Key="BrandOnPrimary" Color="#FFFFFF"/>
+
+      <SolidColorBrush x:Key="ButtonSecondaryBg" Color="#F1F5F9"/>
+      <SolidColorBrush x:Key="ButtonSecondaryBorder" Color="#E2E8F0"/>
+      <SolidColorBrush x:Key="ButtonSecondaryText" Color="#0F172A"/>
+
+      <SolidColorBrush x:Key="InputBackground" Color="#F1F5F9"/>
+      <SolidColorBrush x:Key="InputBorder" Color="#E2E8F0"/>
+      <SolidColorBrush x:Key="InputText" Color="#0F172A"/>
+      <SolidColorBrush x:Key="InputWatermark" Color="#94A3B8"/>
+
+      <SolidColorBrush x:Key="ToastBackground" Color="#EE0F172A"/>
+      <SolidColorBrush x:Key="ToastBorder" Color="#38BDF8"/>
+      <SolidColorBrush x:Key="ToastText" Color="#FFFFFF"/>
+
+      <SolidColorBrush x:Key="WarningContainer" Color="#FFF7ED"/>
+      <SolidColorBrush x:Key="WarningBorder" Color="#F59E0B"/>
+      <SolidColorBrush x:Key="WarningText" Color="#9A3412"/>
+
+      <SolidColorBrush x:Key="IconPrimary" Color="#0F172A"/>
+      <SolidColorBrush x:Key="IconMuted" Color="#94A3B8"/>
+    </ResourceDictionary>
+
+    <!-- ═══════════ DARK THEME ═══════════ -->
+    <ResourceDictionary x:Key="Dark">
+      <SolidColorBrush x:Key="SurfaceBackground" Color="#0B0E14"/>
+      <SolidColorBrush x:Key="SurfaceCard" Color="#161B26"/>
+      <SolidColorBrush x:Key="SurfaceCardHover" Color="#1E2433"/>
+      <SolidColorBrush x:Key="SurfaceInset" Color="#1E2433"/>
+      <SolidColorBrush x:Key="SurfaceElevated" Color="#283044"/>
+
+      <SolidColorBrush x:Key="TextPrimary" Color="#F8FAFC"/>
+      <SolidColorBrush x:Key="TextSecondary" Color="#94A3B8"/>
+      <SolidColorBrush x:Key="TextTertiary" Color="#64748B"/>
+      <SolidColorBrush x:Key="TextDisabled" Color="#475569"/>
+
+      <SolidColorBrush x:Key="BorderSubtle" Color="#2A3245"/>
+      <SolidColorBrush x:Key="BorderStrong" Color="#3B4660"/>
+
+      <SolidColorBrush x:Key="BrandPrimary" Color="#0A84FF"/>
+      <SolidColorBrush x:Key="BrandOnPrimary" Color="#FFFFFF"/>
+
+      <SolidColorBrush x:Key="ButtonSecondaryBg" Color="#1E2433"/>
+      <SolidColorBrush x:Key="ButtonSecondaryBorder" Color="#2A3245"/>
+      <SolidColorBrush x:Key="ButtonSecondaryText" Color="#F8FAFC"/>
+
+      <SolidColorBrush x:Key="InputBackground" Color="#1E2433"/>
+      <SolidColorBrush x:Key="InputBorder" Color="#2A3245"/>
+      <SolidColorBrush x:Key="InputText" Color="#F8FAFC"/>
+      <SolidColorBrush x:Key="InputWatermark" Color="#64748B"/>
+
+      <SolidColorBrush x:Key="ToastBackground" Color="#EE1E293B"/>
+      <SolidColorBrush x:Key="ToastBorder" Color="#0EA5E9"/>
+      <SolidColorBrush x:Key="ToastText" Color="#F8FAFC"/>
+
+      <SolidColorBrush x:Key="WarningContainer" Color="#2A1C08"/>
+      <SolidColorBrush x:Key="WarningBorder" Color="#F59E0B"/>
+      <SolidColorBrush x:Key="WarningText" Color="#FDE68A"/>
+
+      <SolidColorBrush x:Key="IconPrimary" Color="#F8FAFC"/>
+      <SolidColorBrush x:Key="IconMuted" Color="#64748B"/>
+    </ResourceDictionary>
+  </ResourceDictionary.ThemeDictionaries>
 
 </ResourceDictionary>

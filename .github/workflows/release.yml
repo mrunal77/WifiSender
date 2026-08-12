@@ -192,7 +192,10 @@ jobs:
           RUNTIME: ${{ matrix.rid }}
         run: |
           # Free up space before DMG creation
-          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL 2>/dev/null || true
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL /Library/Caches/Homebrew 2>/dev/null || true
+          # Create temp dir in workspace (more space)
+          export TMPDIR="$GITHUB_WORKSPACE/tmp"
+          mkdir -p "$TMPDIR"
           df -h /
           bash packaging/package-macos-dmg.sh
           test -s "dist/WifiSender-$VERSION-$RUNTIME.dmg"

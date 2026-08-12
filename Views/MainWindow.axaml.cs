@@ -2,6 +2,7 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Platform.Storage;
+using WifiSender.Models;
 using WifiSender.ViewModels;
 
 namespace WifiSender.Views;
@@ -96,26 +97,21 @@ public partial class MainWindow : Window
                         {
                             var allFiles = System.IO.Directory.GetFiles(localPath, "*", System.IO.SearchOption.AllDirectories);
                             foreach (var f in allFiles)
-                                vm.SelectedFiles.Add(f);
+                                vm.SelectedFiles.Add(new SelectedFileItem(f));
                         }
                         catch { }
                     }
                     else if (System.IO.File.Exists(localPath))
                     {
-                        vm.SelectedFiles.Add(localPath);
+                        vm.SelectedFiles.Add(new SelectedFileItem(localPath));
                     }
                 }
             }
 
             if (vm.SelectedFiles.Count > 0)
             {
-                long totalSize = 0;
-                foreach (var f in vm.SelectedFiles)
-                {
-                    if (System.IO.File.Exists(f))
-                        totalSize += new System.IO.FileInfo(f).Length;
-                }
-                vm.Status = $"Dropped {vm.SelectedFiles.Count} file(s) ({MainWindowViewModel.FormatFileSize(totalSize)})";
+                vm.Status = $"Dropped {vm.SelectedFilesSummary}";
+                vm.ShowToast($"📥 Dropped {vm.SelectedFilesSummary}");
                 vm.SendFilesCommand.NotifyCanExecuteChanged();
             }
         }

@@ -1,24 +1,26 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-         xmlns:vm="using:WifiSender.ViewModels"
-         xmlns:conv="using:WifiSender.Converters"
-         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:vm="using:WifiSender.ViewModels"
+        xmlns:models="using:WifiSender.Models"
+        xmlns:conv="using:WifiSender.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="680" d:DesignHeight="620"
-         x:Class="WifiSender.Views.MainWindow"
-         x:DataType="vm:MainWindowViewModel"
-         Title="WifiSender"
-         Width="820" Height="650"
-         SizeToContent="Manual"
-         CanResize="False"
-         MinWidth="720" MinHeight="560"
-         FontFamily="Inter"
-         Icon="/Assets/appicon.ico">
-    <Window.Transitions>
-      <Transitions>
-        <BrushTransition Property="Background" Duration="0:0:0.25"/>
-      </Transitions>
-    </Window.Transitions>
+        mc:Ignorable="d" d:DesignWidth="780" d:DesignHeight="650"
+        x:Class="WifiSender.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="WifiSender — Fast WiFi File Sharing"
+        Width="820" Height="660"
+        SizeToContent="Manual"
+        CanResize="False"
+        MinWidth="720" MinHeight="560"
+        FontFamily="Inter, SF Pro Display, Segoe UI, sans-serif"
+        Icon="/Assets/appicon.ico">
+
+  <Window.Transitions>
+    <Transitions>
+      <BrushTransition Property="Background" Duration="0:0:0.25"/>
+    </Transitions>
+  </Window.Transitions>
 
   <Window.Resources>
     <StreamGeometry x:Key="IconWifi">M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z</StreamGeometry>
@@ -33,345 +35,416 @@
     <StreamGeometry x:Key="IconDevice">M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z</StreamGeometry>
     <StreamGeometry x:Key="IconFile">M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z</StreamGeometry>
     <StreamGeometry x:Key="IconWrench">M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z</StreamGeometry>
+    <StreamGeometry x:Key="IconCopy">M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z</StreamGeometry>
+    <StreamGeometry x:Key="IconExternalLink">M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z</StreamGeometry>
+    <StreamGeometry x:Key="IconFolderZip">M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z</StreamGeometry>
+    <StreamGeometry x:Key="IconImage">M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z</StreamGeometry>
+    <StreamGeometry x:Key="IconVideo">M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z</StreamGeometry>
+    <StreamGeometry x:Key="IconCode">M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z</StreamGeometry>
+    <StreamGeometry x:Key="IconClose">M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z</StreamGeometry>
   </Window.Resources>
 
-  <DockPanel>
-    <Border DockPanel.Dock="Top" Padding="24,18,24,22">
-      <Border.Styles>
-        <Style Selector=":dark Border">
-          <Setter Property="Background">
-            <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-              <GradientStop Color="#1C1C1E" Offset="0"/>
-              <GradientStop Color="#000000" Offset="1"/>
-            </LinearGradientBrush>
-          </Setter>
-        </Style>
-        <Style Selector=":light Border">
-          <Setter Property="Background">
-            <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
-              <GradientStop Color="#FFFFFF" Offset="0"/>
-              <GradientStop Color="#F5F5F7" Offset="1"/>
-            </LinearGradientBrush>
-          </Setter>
-        </Style>
-      </Border.Styles>
-      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
-        <StackPanel Orientation="Horizontal" Spacing="12">
-          <Border Classes="Logo">
-            <PathIcon Data="{StaticResource IconWifi}" Width="18" Height="18" Foreground="#FFFFFF"
-                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
-          </Border>
-          <StackPanel VerticalAlignment="Center">
-            <TextBlock Text="WifiSender" Classes="HeroTitle"/>
-            <TextBlock Text="Fast WiFi file transfer" Classes="HeroSubtitle"/>
-          </StackPanel>
-        </StackPanel>
-
-        <Border Grid.Column="2" Classes="Pill">
-          <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="8">
-            <Border Classes="StatusDot" VerticalAlignment="Center"/>
+  <Grid RowDefinitions="*,Auto">
+    <DockPanel Grid.Row="0">
+      <!-- ═══════════ TOP APP BAR ═══════════ -->
+      <Border DockPanel.Dock="Top" Padding="24,18,24,18">
+        <Border.Styles>
+          <Style Selector=":dark Border">
+            <Setter Property="Background">
+              <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                <GradientStop Color="#141720" Offset="0"/>
+                <GradientStop Color="#0A0C10" Offset="1"/>
+              </LinearGradientBrush>
+            </Setter>
+          </Style>
+          <Style Selector=":light Border">
+            <Setter Property="Background">
+              <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
+                <GradientStop Color="#FFFFFF" Offset="0"/>
+                <GradientStop Color="#F8FAFC" Offset="1"/>
+              </LinearGradientBrush>
+            </Setter>
+          </Style>
+        </Border.Styles>
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+          <StackPanel Orientation="Horizontal" Spacing="14">
+            <Border Width="38" Height="38" CornerRadius="10" Background="{StaticResource Brush.HeaderLogoGradient}">
+              <PathIcon Data="{StaticResource IconWifi}" Width="20" Height="20" Foreground="#FFFFFF"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
             <StackPanel VerticalAlignment="Center">
-              <TextBlock Text="Local IP" Classes="PillLabel"/>
-              <TextBlock Text="{Binding LocalIp}" Classes="PillValue"/>
+              <TextBlock Text="WifiSender" Classes="HeroTitle"/>
+              <TextBlock Text="Fast WiFi File Sharing" Classes="HeroSubtitle"/>
             </StackPanel>
-          </Grid>
-        </Border>
-      </Grid>
-    </Border>
-
-    <Border Opacity="{Binding ContentOpacity}" Padding="0" Background="Transparent" Classes="ContentArea">
-      <Border.Transitions><Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.2"/></Transitions></Border.Transitions>
-
-    <TabControl x:Name="MainTabControl" SelectedIndex="{Binding SelectedTabIndex}" Margin="24,18,0,24">
-      <TabControl.Transitions><Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.15"/></Transitions></TabControl.Transitions>
-
-      <!-- ═══════════ SEND TAB ═══════════ -->
-      <TabItem>
-        <TabItem.Header>
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <PathIcon Data="{StaticResource IconUpload}" Width="14" Height="14" VerticalAlignment="Center"/>
-            <TextBlock Text="Send Files" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
           </StackPanel>
-        </TabItem.Header>
-        <ScrollViewer x:Name="SendScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-          <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="16" Margin="0,16,20,0"
-                VerticalAlignment="Top" MinHeight="400">
 
-            <!-- Firewall Warning -->
-            <Border Grid.Row="0" Classes="Warning" IsVisible="{Binding IsFirewallWarningVisible}">
-              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                <Border Classes="WarningIcon">
-                  <TextBlock Text="!" FontWeight="Bold" FontSize="15" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                </Border>
-                <TextBlock Grid.Column="1" Text="{Binding FirewallWarningText}"
-                           TextWrapping="Wrap" VerticalAlignment="Center" FontSize="12"/>
-                <Button Grid.Column="2" Command="{Binding FixFirewallCommand}"
-                        Classes="Ghost SmallButton" VerticalAlignment="Center" ToolTip.Tip="Fix firewall">
-                  <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <PathIcon Data="{StaticResource IconWrench}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    <TextBlock Text="Fix" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                  </StackPanel>
+          <!-- IP Badge & Theme Toggle -->
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+            <Border Classes="GlassCard" Padding="10,6">
+              <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+                <Border Classes="StatusDot" VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                  <TextBlock Text="Local IP:" Classes="Caption" VerticalAlignment="Center"/>
+                  <TextBlock Text="{Binding LocalIp}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                </StackPanel>
+                <Button Grid.Column="2" Command="{Binding CopyLocalIpCommand}" CommandParameter="{Binding $parent[Window]}"
+                        Classes="CopyPill" ToolTip.Tip="Copy IP address to clipboard">
+                  <PathIcon Data="{StaticResource IconCopy}" Width="12" Height="12"/>
                 </Button>
               </Grid>
             </Border>
 
-            <!-- Connection Card -->
-            <Border Grid.Row="1" Classes="Card">
-              <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="12">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
-                  <PathIcon Data="{StaticResource IconSearch}" VerticalAlignment="Center"/>
-                  <TextBlock Grid.Column="1" Text="Connection" Classes="Heading" VerticalAlignment="Center"/>
-                  <Button Grid.Column="2" Command="{Binding TestConnectionCommand}"
-                          Classes="Secondary SmallButton" VerticalAlignment="Center" ToolTip.Tip="Test selected receiver connections">
-                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                      <PathIcon Data="{StaticResource IconPlay}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                      <TextBlock Text="Test" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                  <Button Grid.Column="3" Command="{Binding ScanDevicesCommand}"
-                          IsEnabled="{Binding !IsScanning}" Classes="Primary SmallButton" VerticalAlignment="Center"
-                          ToolTip.Tip="Scan for nearby devices">
-                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                      <PathIcon Data="{StaticResource IconSearch}"
-                                HorizontalAlignment="Center" VerticalAlignment="Center"
-                                Opacity="{Binding IsScanning, Converter={x:Static conv:BoolToOpacity.Instance}}"/>
-                      <TextBlock Text="Scan" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                </Grid>
+            <Button Command="{Binding ToggleThemeCommand}" Classes="IconButton" ToolTip.Tip="Toggle dark/light theme">
+              <TextBlock Text="{Binding ThemeIcon}" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+            </Button>
+          </StackPanel>
+        </Grid>
+      </Border>
 
-                <TextBlock Grid.Row="1" Text="{Binding ConnectionTestResult}" Classes="Small" IsVisible="{Binding HasConnectionTestResult}" TextWrapping="Wrap"/>
+      <!-- ═══════════ MAIN CONTENT TAB AREA ═══════════ -->
+      <Border Opacity="{Binding ContentOpacity}" Padding="0" Background="Transparent">
+        <Border.Transitions>
+          <Transitions>
+            <DoubleTransition Property="Opacity" Duration="0:0:0.18"/>
+          </Transitions>
+        </Border.Transitions>
 
-                <Border Grid.Row="2" IsVisible="{Binding HasDiscoveredDevices}" Classes="Inset" Padding="10" MinHeight="60" MaxHeight="250">
-                  <Grid RowDefinitions="*,Auto" RowSpacing="8">
-                    <ListBox ItemsSource="{Binding DiscoveredDevices}" BorderThickness="0" Background="Transparent">
-                      <ListBox.ItemTemplate>
-                        <DataTemplate>
-                          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                            <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center"/>
-                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                              <TextBlock Text="{Binding DisplayName}" FontSize="13"/>
-                              <TextBlock Text="{Binding IpAddress}" Classes="Small"/>
-                            </StackPanel>
-                          </Grid>
-                        </DataTemplate>
-                      </ListBox.ItemTemplate>
-                    </ListBox>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
-                      <Button Command="{Binding SelectAllDevicesCommand}" Classes="Ghost SmallButton" FontSize="11" Padding="8,4">
-                        <TextBlock Text="Select All" FontSize="11"/>
-                      </Button>
-                      <Button Command="{Binding ClearDeviceSelectionCommand}" Classes="Ghost SmallButton" FontSize="11" Padding="8,4">
-                        <TextBlock Text="Clear" FontSize="11"/>
-                      </Button>
-                    </StackPanel>
+        <TabControl x:Name="MainTabControl" SelectedIndex="{Binding SelectedTabIndex}" Margin="24,14,0,24">
+          <!-- ═══════════ SEND TAB ═══════════ -->
+          <TabItem>
+            <TabItem.Header>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <PathIcon Data="{StaticResource IconUpload}" Width="14" Height="14" VerticalAlignment="Center" Foreground="#007AFF"/>
+                <TextBlock Text="Send Files" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
+            </TabItem.Header>
+            <ScrollViewer x:Name="SendScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+              <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="16" Margin="0,16,20,0" VerticalAlignment="Top" MinHeight="420">
+
+                <!-- Firewall Warning Banner -->
+                <Border Grid.Row="0" Classes="Warning" IsVisible="{Binding IsFirewallWarningVisible}">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                    <Border Width="28" Height="28" CornerRadius="999" Background="#F59E0B" VerticalAlignment="Center">
+                      <TextBlock Text="!" Foreground="#FFFFFF" FontWeight="Bold" FontSize="16" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="{Binding FirewallWarningText}" TextWrapping="Wrap" VerticalAlignment="Center" FontSize="12"/>
+                    <Button Grid.Column="2" Command="{Binding FixFirewallCommand}" Classes="Secondary SmallButton" VerticalAlignment="Center">
+                      <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <PathIcon Data="{StaticResource IconWrench}" Width="12" Height="12" VerticalAlignment="Center"/>
+                        <TextBlock Text="Fix Firewall" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </Button>
                   </Grid>
                 </Border>
-              </Grid>
-            </Border>
 
-            <!-- Files Card -->
-            <Border Grid.Row="2" Classes="Card">
-              <Grid RowDefinitions="Auto,Auto" RowSpacing="12">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
-                  <PathIcon Data="{StaticResource IconFolder}" VerticalAlignment="Center"/>
-                  <TextBlock Grid.Column="1" Text="Files" Classes="Heading" VerticalAlignment="Center"/>
-                  <Button Grid.Column="2" Command="{Binding SelectFilesCommand}"
-                          CommandParameter="{Binding $parent[Window]}" Classes="Secondary SmallButton" VerticalAlignment="Center"
-                          ToolTip.Tip="Add files to send">
-                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                      <PathIcon Data="{StaticResource IconFile}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                      <TextBlock Text="Add Files" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
+                <!-- Connection Card -->
+                <Border Grid.Row="1" Classes="Card">
+                  <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="14">
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+                      <PathIcon Data="{StaticResource IconSearch}" Width="18" Height="18" Foreground="#00C7BE" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="Connection" Classes="Heading" VerticalAlignment="Center"/>
 
-                  <Button Grid.Column="3" Command="{Binding SelectFolderCommand}"
-                          CommandParameter="{Binding $parent[Window]}" Classes="Secondary SmallButton" VerticalAlignment="Center"
-                          ToolTip.Tip="Add folder to send">
-                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                      <PathIcon Data="{StaticResource IconFolder}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                      <TextBlock Text="Add Folder" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                  <Button Grid.Column="4" Command="{Binding ClearFilesCommand}"
-                          Classes="Ghost SmallButton" VerticalAlignment="Center" ToolTip.Tip="Clear selected files">
-                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                      <PathIcon Data="{StaticResource IconDelete}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                      <TextBlock Text="Clear" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                </Grid>
+                      <Button Grid.Column="2" Command="{Binding TestConnectionCommand}" Classes="Secondary SmallButton" VerticalAlignment="Center" ToolTip.Tip="Test selected receiver connections">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                          <PathIcon Data="{StaticResource IconPlay}" Width="12" Height="12" Foreground="#34C759" VerticalAlignment="Center"/>
+                          <TextBlock Text="Test Connection" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                      </Button>
 
-                <Border Grid.Row="1" Classes="Inset" MinHeight="60" MaxHeight="150" IsVisible="{Binding HasSelectedFiles}">
-                  <ListBox ItemsSource="{Binding SelectedFiles}">
-                    <ListBox.ItemTemplate>
-                      <DataTemplate>
-                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                          <Border Classes="Inset" CornerRadius="10" Width="34" Height="34">
-                            <PathIcon Data="{StaticResource IconFile}"
-                                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                          </Border>
-                          <TextBlock Grid.Column="1" Text="{Binding}" FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                        </Grid>
-                      </DataTemplate>
-                    </ListBox.ItemTemplate>
-                  </ListBox>
-                </Border>
-              </Grid>
-            </Border>
+                      <Button Grid.Column="3" Command="{Binding ScanDevicesCommand}" IsEnabled="{Binding !IsScanning}" Classes="Primary SmallButton" VerticalAlignment="Center" ToolTip.Tip="Scan for nearby devices">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                          <PathIcon Data="{StaticResource IconSearch}" Width="12" Height="12" VerticalAlignment="Center" Opacity="{Binding IsScanning, Converter={x:Static conv:BoolToOpacity.Instance}}"/>
+                          <TextBlock Text="Scan Network" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                      </Button>
+                    </Grid>
 
-            <!-- Send Action -->
-            <Grid Grid.Row="3" ColumnDefinitions="*,*" ColumnSpacing="12" HorizontalAlignment="Center">
-              <Button Command="{Binding SendFilesCommand}" CommandParameter="{Binding $parent[Window]}"
-                      Classes="Primary Send" HorizontalAlignment="Stretch" MinWidth="160" Padding="24,14"
-                      CornerRadius="10" ToolTip.Tip="Send files (Enter)"
-                      IsVisible="{Binding !IsSending}">
-                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-                  <PathIcon Data="{StaticResource IconUpload}" Width="20" Height="20"
-                            VerticalAlignment="Center"/>
-                  <TextBlock Text="Send Selected Files" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
-                </StackPanel>
-              </Button>
-              <Button Grid.Column="1" Command="{Binding StopSendingCommand}"
-                      Classes="Destructive" HorizontalAlignment="Stretch" MinWidth="160" Padding="24,14"
-                      CornerRadius="10"
-                      IsVisible="{Binding IsSending}">
-                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-                  <PathIcon Data="{StaticResource IconStop}" Width="20" Height="20"
-                            VerticalAlignment="Center"/>
-                  <TextBlock Text="Stop Sending" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
-                </StackPanel>
-              </Button>
-            </Grid>
+                    <TextBlock Grid.Row="1" Text="{Binding ConnectionTestResult}" Classes="Small" IsVisible="{Binding HasConnectionTestResult}" TextWrapping="Wrap"/>
 
-            <!-- Progress -->
-            <Border Grid.Row="4" Classes="Inset" IsVisible="{Binding IsSending}">
-              <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
-                <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
-                  <TextBlock Text="{Binding Status}" Classes="Small" TextTrimming="CharacterEllipsis"/>
-                  <TextBlock Grid.Column="1" Text="{Binding CurrentFileProgress}" FontSize="11" FontWeight="SemiBold"/>
-                </Grid>
-                <TextBlock Grid.Row="1" Text="{Binding CurrentFileName}" Classes="Small" TextTrimming="CharacterEllipsis" FontStyle="Italic"
-                           IsVisible="{Binding HasCurrentFile}"/>
-                <ProgressBar Grid.Row="2" Value="{Binding Progress}" Minimum="0" Maximum="100"/>
-              </Grid>
-            </Border>
+                    <!-- Discovered Devices List -->
+                    <Border Grid.Row="2" IsVisible="{Binding HasDiscoveredDevices}" Classes="Inset" Padding="12" MinHeight="70" MaxHeight="220">
+                      <Grid RowDefinitions="*,Auto" RowSpacing="10">
+                        <ListBox ItemsSource="{Binding DiscoveredDevices}" BorderThickness="0" Background="Transparent">
+                          <ListBox.ItemTemplate>
+                            <DataTemplate>
+                              <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="12" Margin="0,4">
+                                <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center"/>
 
-          </Grid>
-        </ScrollViewer>
-      </TabItem>
+                                <Border Grid.Column="1" Width="34" Height="34" CornerRadius="10" Background="{StaticResource Brush.AvatarGradient1}" VerticalAlignment="Center">
+                                  <PathIcon Data="{StaticResource IconDevice}" Width="16" Height="16" Foreground="#FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
 
-      <!-- ═══════════ RECEIVE TAB ═══════════ -->
-      <TabItem>
-        <TabItem.Header>
-          <StackPanel Orientation="Horizontal" Spacing="6">
-            <PathIcon Data="{StaticResource IconDownload}" Width="14" Height="14" VerticalAlignment="Center"/>
-            <TextBlock Text="Receive Files" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-          </StackPanel>
-        </TabItem.Header>
-        <ScrollViewer x:Name="ReceiveScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-          <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="16" Margin="0,16,20,0"
-                VerticalAlignment="Top" MinHeight="400">
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                  <TextBlock Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold"/>
+                                  <TextBlock Text="{Binding IpAddress}" Classes="Small"/>
+                                </StackPanel>
 
-            <!-- Connection Info Card -->
-            <Border Grid.Row="0" Classes="Card">
-              <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="12">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto" ColumnSpacing="8" VerticalAlignment="Center">
-                  <PathIcon Grid.Column="0" Data="{StaticResource IconDownload}" VerticalAlignment="Center"/>
-                  <TextBlock Grid.Column="1" Text="Connection Info" Classes="Heading" VerticalAlignment="Center"/>
-                </Grid>
+                                <Border Grid.Column="3" CornerRadius="999" Background="#10B981" Padding="8,3" VerticalAlignment="Center">
+                                  <TextBlock Text="ONLINE" Foreground="#FFFFFF" FontSize="9" FontWeight="Bold"/>
+                                </Border>
+                              </Grid>
+                            </DataTemplate>
+                          </ListBox.ItemTemplate>
+                        </ListBox>
 
-                <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto" ColumnSpacing="10" RowDefinitions="Auto,Auto" RowSpacing="10">
-                  <TextBlock Grid.Row="0" Grid.Column="0" Text="Your IP" Classes="Caption" VerticalAlignment="Center"/>
-                    <Border Grid.Row="0" Grid.Column="1" Classes="Inset" Padding="10,8" HorizontalAlignment="Left" MinWidth="150">
-                      <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="6">
-                        <Border Classes="StatusDot" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="{Binding LocalIp}" FontWeight="SemiBold" FontSize="13"/>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="14">
+                          <Button Command="{Binding SelectAllDevicesCommand}" Classes="Ghost SmallButton">
+                            <TextBlock Text="Select All" FontSize="11" FontWeight="SemiBold"/>
+                          </Button>
+                          <Button Command="{Binding ClearDeviceSelectionCommand}" Classes="Ghost SmallButton">
+                            <TextBlock Text="Clear" FontSize="11" FontWeight="SemiBold"/>
+                          </Button>
+                        </StackPanel>
                       </Grid>
                     </Border>
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Port number" Classes="Caption" VerticalAlignment="Center"/>
-                    <Border Grid.Row="1" Grid.Column="1" Classes="Inset" Padding="0" HorizontalAlignment="Left" MinWidth="80">
-                      <TextBox Text="{Binding Port}" MaxLength="5" BorderThickness="0" Background="Transparent"
-                               FontWeight="SemiBold" FontSize="13" Padding="10,8"/>
-                    </Border>
-                </Grid>
 
-                <Border Grid.Row="2" Classes="Inset" Padding="10">
-                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="7">
-                    <PathIcon Data="{StaticResource IconDownload}" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="1" Text="Share the IP and port above with the sender"
-                              Classes="Small" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                    <!-- Empty Devices State -->
+                    <Border Grid.Row="2" IsVisible="{Binding !HasDiscoveredDevices}" Classes="Inset" Padding="20">
+                      <StackPanel HorizontalAlignment="Center" Spacing="8">
+                        <PathIcon Data="{StaticResource IconSearch}" Width="24" Height="24" Foreground="#94A3B8" HorizontalAlignment="Center"/>
+                        <TextBlock Text="No nearby receivers found" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Ensure WifiSender is active on the target device on the same network." Classes="Small" HorizontalAlignment="Center"/>
+                        <Button Command="{Binding ScanDevicesCommand}" Classes="Ghost SmallButton" HorizontalAlignment="Center">
+                          <TextBlock Text="Scan Now" FontSize="11" FontWeight="Bold"/>
+                        </Button>
+                      </StackPanel>
+                    </Border>
                   </Grid>
                 </Border>
-              </Grid>
-            </Border>
 
-            <!-- Save Location Card -->
-            <Border Grid.Row="1" Classes="Card">
-              <Grid RowDefinitions="Auto,Auto" RowSpacing="12">
-                 <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                   <PathIcon Grid.Column="0" Data="{StaticResource IconFolder}" VerticalAlignment="Center"/>
-                  <TextBlock Grid.Column="1" Text="Save Location" Classes="Heading" VerticalAlignment="Center"/>
-                  <Button Grid.Column="2" Command="{Binding SelectDownloadFolderCommand}"
-                          CommandParameter="{Binding $parent[Window]}" Classes="Secondary SmallButton" VerticalAlignment="Center"
-                          ToolTip.Tip="Change download folder">
-                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                      <PathIcon Data="{StaticResource IconFolder}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                      <TextBlock Text="Change" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <!-- Files Selection Card -->
+                <Border Grid.Row="2" Classes="Card">
+                  <Grid RowDefinitions="Auto,Auto" RowSpacing="14">
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
+                      <PathIcon Data="{StaticResource IconFolder}" Width="18" Height="18" Foreground="#AF52DE" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="Files to Send" Classes="Heading" VerticalAlignment="Center"/>
+
+                      <Button Grid.Column="2" Command="{Binding SelectFilesCommand}" CommandParameter="{Binding $parent[Window]}" Classes="Secondary SmallButton" ToolTip.Tip="Add files to send">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                          <PathIcon Data="{StaticResource IconFile}" Width="12" Height="12" VerticalAlignment="Center"/>
+                          <TextBlock Text="Add Files" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                      </Button>
+
+                      <Button Grid.Column="3" Command="{Binding SelectFolderCommand}" CommandParameter="{Binding $parent[Window]}" Classes="Secondary SmallButton" ToolTip.Tip="Add folder to send">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                          <PathIcon Data="{StaticResource IconFolder}" Width="12" Height="12" VerticalAlignment="Center"/>
+                          <TextBlock Text="Add Folder" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                      </Button>
+
+                      <Button Grid.Column="4" Command="{Binding ClearFilesCommand}" Classes="Ghost SmallButton" ToolTip.Tip="Clear all files">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                          <PathIcon Data="{StaticResource IconDelete}" Width="12" Height="12" Foreground="#FF3B30" VerticalAlignment="Center"/>
+                          <TextBlock Text="Clear" FontSize="12" FontWeight="SemiBold" Foreground="#FF3B30" VerticalAlignment="Center"/>
+                        </StackPanel>
+                      </Button>
+                    </Grid>
+
+                    <!-- Selected Files List -->
+                    <Border Grid.Row="1" IsVisible="{Binding HasSelectedFiles}" Classes="Inset" MinHeight="70" MaxHeight="200" Padding="8">
+                      <ListBox ItemsSource="{Binding SelectedFiles}" BorderThickness="0" Background="Transparent">
+                        <ListBox.ItemTemplate>
+                          <DataTemplate DataType="models:SelectedFileItem">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" Margin="0,3">
+                              <!-- Category Badge -->
+                              <Border Width="36" Height="36" CornerRadius="10" Background="{Binding BadgeBackground}" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding ExtensionBadge}" Foreground="{Binding BadgeForeground}" Classes="BadgeText" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                              </Border>
+
+                              <!-- File Info -->
+                              <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding FileName}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding FormattedSize}" Classes="Small"/>
+                              </StackPanel>
+
+                              <!-- Remove Button -->
+                              <Button Grid.Column="2" Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RemoveSelectedFileCommand}"
+                                      CommandParameter="{Binding}" Classes="IconButton" ToolTip.Tip="Remove file">
+                                <PathIcon Data="{StaticResource IconClose}" Width="12" Height="12" Foreground="#FF3B30"/>
+                              </Button>
+                            </Grid>
+                          </DataTemplate>
+                        </ListBox.ItemTemplate>
+                      </ListBox>
+                    </Border>
+
+                    <!-- Empty Files State -->
+                    <Border Grid.Row="1" IsVisible="{Binding !HasSelectedFiles}" Classes="Inset" Padding="24">
+                      <StackPanel HorizontalAlignment="Center" Spacing="8">
+                        <PathIcon Data="{StaticResource IconUpload}" Width="28" Height="28" Foreground="#007AFF" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Drag &amp; Drop files or folders here" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="or click Add Files / Add Folder above to choose items." Classes="Small" HorizontalAlignment="Center"/>
+                      </StackPanel>
+                    </Border>
+                  </Grid>
+                </Border>
+
+                <!-- Action Button -->
+                <Grid Grid.Row="3" ColumnDefinitions="*,*" ColumnSpacing="12" HorizontalAlignment="Center">
+                  <Button Command="{Binding SendFilesCommand}" CommandParameter="{Binding $parent[Window]}"
+                          Classes="Primary" MinWidth="240" Padding="24,14" CornerRadius="14"
+                          IsVisible="{Binding !IsSending}">
+                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                      <PathIcon Data="{StaticResource IconUpload}" Width="18" Height="18" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                      <TextBlock Text="Send Selected Files" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+
+                  <Button Command="{Binding StopSendingCommand}" Classes="Destructive" MinWidth="240" Padding="24,14" CornerRadius="14" IsVisible="{Binding IsSending}">
+                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                      <PathIcon Data="{StaticResource IconStop}" Width="18" Height="18" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                      <TextBlock Text="Stop Sending" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
                 </Grid>
 
-                <Border Grid.Row="1" Classes="Inset" Padding="10">
-                  <TextBlock Text="{Binding DownloadFolder, FallbackValue='Default: ~/Downloads'}"
-                             FontSize="12" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                <!-- Progress & Speed -->
+                <Border Grid.Row="4" Classes="Inset" IsVisible="{Binding IsSending}" Padding="16">
+                  <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                      <TextBlock Text="{Binding Status}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                      <Border Grid.Column="1" CornerRadius="999" Background="#0A84FF" Padding="8,2">
+                        <TextBlock Text="{Binding TransferSpeedText}" Foreground="#FFFFFF" FontSize="11" FontWeight="Bold"/>
+                      </Border>
+                      <TextBlock Grid.Column="2" Text="{Binding EstimatedTimeRemainingText}" Classes="Small" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <TextBlock Grid.Row="1" Text="{Binding CurrentFileName}" Classes="Small" TextTrimming="CharacterEllipsis" FontStyle="Italic" IsVisible="{Binding HasCurrentFile}"/>
+
+                    <ProgressBar Grid.Row="2" Value="{Binding Progress}" Minimum="0" Maximum="100"/>
+                  </Grid>
                 </Border>
+
               </Grid>
-            </Border>
+            </ScrollViewer>
+          </TabItem>
 
-            <!-- Action Buttons -->
-            <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="12" VerticalAlignment="Center">
-              <Button Command="{Binding ToggleReceivingCommand}" CommandParameter="{Binding $parent[Window]}"
-                      Classes="Primary Receive" HorizontalAlignment="Stretch" Padding="20,14" CornerRadius="10"
-                      IsVisible="{Binding !IsReceiving}">
-                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-                  <PathIcon Data="{StaticResource IconPlay}" Width="20" Height="20"
-                            VerticalAlignment="Center"/>
-                  <TextBlock Text="Start Receiving" FontSize="14" FontWeight="Bold"
-                             VerticalAlignment="Center"/>
-                </StackPanel>
-              </Button>
-              <Button Command="{Binding ToggleReceivingCommand}"
-                      Classes="Destructive" HorizontalAlignment="Stretch" Padding="20,14" CornerRadius="10"
-                      IsVisible="{Binding IsReceiving}">
-                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-                  <PathIcon Data="{StaticResource IconStop}" Width="20" Height="20"
-                            VerticalAlignment="Center"/>
-                  <TextBlock Text="Stop Receiving" FontSize="14" FontWeight="Bold"
-                             VerticalAlignment="Center"/>
-                </StackPanel>
-              </Button>
-            </Grid>
+          <!-- ═══════════ RECEIVE TAB ═══════════ -->
+          <TabItem>
+            <TabItem.Header>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <PathIcon Data="{StaticResource IconDownload}" Width="14" Height="14" VerticalAlignment="Center" Foreground="#34C759"/>
+                <TextBlock Text="Receive Files" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
+            </TabItem.Header>
+            <ScrollViewer x:Name="ReceiveScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+              <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="16" Margin="0,16,20,0" VerticalAlignment="Top" MinHeight="420">
 
-            <!-- Progress -->
-            <Border Grid.Row="3" Classes="Inset" IsVisible="{Binding IsReceiving}">
-              <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
-                <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
-                  <TextBlock Text="{Binding Status}" Classes="Small" TextTrimming="CharacterEllipsis"/>
-                  <TextBlock Grid.Column="1" Text="{Binding CurrentFileProgress}" FontSize="11" FontWeight="SemiBold"/>
+                <!-- Receiver Status Card -->
+                <Border Grid.Row="0" Classes="Card">
+                  <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="14">
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="8" VerticalAlignment="Center">
+                      <PathIcon Data="{StaticResource IconDownload}" Width="18" Height="18" Foreground="#34C759" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="Receiver Connection Info" Classes="Heading" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="16" RowDefinitions="Auto,Auto" RowSpacing="12">
+                      <TextBlock Grid.Row="0" Grid.Column="0" Text="Your Local IP" Classes="Caption" VerticalAlignment="Center"/>
+                      <Border Grid.Row="0" Grid.Column="1" Classes="Inset" Padding="10,6" HorizontalAlignment="Left">
+                        <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="8" VerticalAlignment="Center">
+                          <Border Classes="StatusDot" VerticalAlignment="Center"/>
+                          <TextBlock Grid.Column="1" Text="{Binding LocalIp}" FontWeight="Bold" FontSize="13" VerticalAlignment="Center"/>
+                          <Button Grid.Column="2" Command="{Binding CopyLocalIpCommand}" CommandParameter="{Binding $parent[Window]}" Classes="CopyPill">
+                            <PathIcon Data="{StaticResource IconCopy}" Width="12" Height="12"/>
+                          </Button>
+                        </Grid>
+                      </Border>
+
+                      <TextBlock Grid.Row="1" Grid.Column="0" Text="Receiver Port" Classes="Caption" VerticalAlignment="Center"/>
+                      <Border Grid.Row="1" Grid.Column="1" Classes="Inset" Padding="0" HorizontalAlignment="Left" MinWidth="100">
+                        <TextBox Text="{Binding Port}" MaxLength="5" BorderThickness="0" Background="Transparent" FontWeight="Bold" FontSize="13" Padding="10,6"/>
+                      </Border>
+                    </Grid>
+
+                    <Border Grid.Row="2" Classes="Inset" Padding="12">
+                      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                        <PathIcon Data="{StaticResource IconWifi}" Width="16" Height="16" Foreground="#007AFF" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="Share your Local IP and Port with the sender device on the same WiFi network." Classes="Small" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                      </Grid>
+                    </Border>
+                  </Grid>
+                </Border>
+
+                <!-- Save Location Card -->
+                <Border Grid.Row="1" Classes="Card">
+                  <Grid RowDefinitions="Auto,Auto" RowSpacing="14">
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+                      <PathIcon Data="{StaticResource IconFolder}" Width="18" Height="18" Foreground="#FF9500" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="Save Location" Classes="Heading" VerticalAlignment="Center"/>
+
+                      <Button Grid.Column="2" Command="{Binding OpenDownloadFolderCommand}" Classes="Secondary SmallButton" ToolTip.Tip="Open download folder">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                          <PathIcon Data="{StaticResource IconExternalLink}" Width="12" Height="12" VerticalAlignment="Center"/>
+                          <TextBlock Text="Open Folder" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                      </Button>
+
+                      <Button Grid.Column="3" Command="{Binding SelectDownloadFolderCommand}" CommandParameter="{Binding $parent[Window]}" Classes="Secondary SmallButton" ToolTip.Tip="Change folder">
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                          <PathIcon Data="{StaticResource IconFolder}" Width="12" Height="12" VerticalAlignment="Center"/>
+                          <TextBlock Text="Change" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                      </Button>
+                    </Grid>
+
+                    <Border Grid.Row="1" Classes="Inset" Padding="12">
+                      <TextBlock Text="{Binding DownloadFolder}" FontSize="12" FontWeight="Medium" TextTrimming="CharacterEllipsis"/>
+                    </Border>
+                  </Grid>
+                </Border>
+
+                <!-- Receiver Control Action -->
+                <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="12" VerticalAlignment="Center">
+                  <Button Command="{Binding ToggleReceivingCommand}" CommandParameter="{Binding $parent[Window]}"
+                          Classes="Primary" HorizontalAlignment="Stretch" Padding="20,14" CornerRadius="14"
+                          IsVisible="{Binding !IsReceiving}">
+                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                      <PathIcon Data="{StaticResource IconPlay}" Width="18" Height="18" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                      <TextBlock Text="Start Receiving" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+
+                  <Button Command="{Binding ToggleReceivingCommand}" Classes="Destructive" HorizontalAlignment="Stretch" Padding="20,14" CornerRadius="14" IsVisible="{Binding IsReceiving}">
+                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                      <PathIcon Data="{StaticResource IconStop}" Width="18" Height="18" Foreground="#FFFFFF" VerticalAlignment="Center"/>
+                      <TextBlock Text="Stop Receiving" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
                 </Grid>
-                <TextBlock Grid.Row="1" Text="{Binding CurrentFileName}" Classes="Small" TextTrimming="CharacterEllipsis" FontStyle="Italic"
-                           IsVisible="{Binding HasCurrentFile}"/>
-                <ProgressBar Grid.Row="2" Value="{Binding Progress}" Minimum="0" Maximum="100"/>
+
+                <!-- Live Progress Card -->
+                <Border Grid.Row="3" Classes="Inset" IsVisible="{Binding IsReceiving}" Padding="16">
+                  <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                      <TextBlock Text="{Binding Status}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                      <Border Grid.Column="1" CornerRadius="999" Background="#34C759" Padding="8,2">
+                        <TextBlock Text="{Binding TransferSpeedText}" Foreground="#FFFFFF" FontSize="11" FontWeight="Bold"/>
+                      </Border>
+                      <TextBlock Grid.Column="2" Text="{Binding EstimatedTimeRemainingText}" Classes="Small" VerticalAlignment="Center"/>
+                    </Grid>
+
+                    <TextBlock Grid.Row="1" Text="{Binding CurrentFileName}" Classes="Small" TextTrimming="CharacterEllipsis" FontStyle="Italic" IsVisible="{Binding HasCurrentFile}"/>
+
+                    <ProgressBar Grid.Row="2" Value="{Binding Progress}" Minimum="0" Maximum="100"/>
+                  </Grid>
+                </Border>
+
               </Grid>
-            </Border>
+            </ScrollViewer>
+          </TabItem>
+        </TabControl>
+      </Border>
+    </DockPanel>
 
-          </Grid>
-        </ScrollViewer>
-      </TabItem>
-
-    </TabControl>
+    <!-- ═══════════ FLOATING TOAST NOTIFICATION ═══════════ -->
+    <Border Grid.Row="1" Classes="Toast" IsVisible="{Binding IsToastVisible}" Margin="0,0,0,24" HorizontalAlignment="Center" VerticalAlignment="Bottom">
+      <Border.Transitions>
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+        </Transitions>
+      </Border.Transitions>
+      <TextBlock Text="{Binding ToastMessage}" Foreground="#FFFFFF" FontSize="12" FontWeight="SemiBold"/>
     </Border>
-  </DockPanel>
-
+  </Grid>
 </Window>

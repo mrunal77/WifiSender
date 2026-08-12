@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -12,6 +13,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using WifiSender.Models;
 using WifiSender.Services;
 
 namespace WifiSender.ViewModels;
@@ -24,6 +26,7 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly ILocalIpService _localIpService;
     private readonly IThemeService _themeService;
     private readonly IFilePickerService _filePickerService;
+    private CancellationTokenSource? _toastCts;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(SendFilesCommand))]
@@ -73,6 +76,12 @@ public partial class MainWindowViewModel : ObservableObject
     private string _currentFileProgress = "";
 
     [ObservableProperty]
+    private string _transferSpeedText = "";
+
+    [ObservableProperty]
+    private string _estimatedTimeRemainingText = "";
+
+    [ObservableProperty]
     private bool _isScanning;
 
     [ObservableProperty]
@@ -96,17 +105,36 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(NavBarBackground))]
     private bool _isNavBarScrolled;
 
+    [ObservableProperty]
+    private string _toastMessage = "";
+
+    [ObservableProperty]
+    private bool _isToastVisible;
+
     public string ThemeIcon => IsDarkTheme ? "🌙" : "☀️";
 
-    public IBrush NavBarBackground => IsDarkTheme ? Brushes.Transparent : (IsNavBarScrolled ? Brushes.Transparent : Brushes.Transparent);
+    public IBrush NavBarBackground => IsDarkTheme ? Brushes.Transparent : Brushes.Transparent;
 
-    public ObservableCollection<string> SelectedFiles { get; } = new();
+    public ObservableCollection<SelectedFileItem> SelectedFiles { get; } = new();
     public ObservableCollection<DiscoveredDevice> DiscoveredDevices { get; } = new();
 
     public bool HasSelectedFiles => SelectedFiles.Count > 0;
     public bool HasDiscoveredDevices => DiscoveredDevices.Count > 0;
     public bool HasConnectionTestResult => !string.IsNullOrEmpty(ConnectionTestResult);
     public bool HasCurrentFile => !string.IsNullOrEmpty(CurrentFileName);
+
+    public string SelectedFilesSummary
+    {
+        get
+        {
+            if (SelectedFiles.Count == 0) return "No files selected";
+            long totalBytes = 0;
+            foreach (var f in SelectedFiles)
+                totalBytes += f.FileSize;
+
+            return $"{SelectedFiles.Count} item{(SelectedFiles.Count == 1 ? "" : "s")} ({FormatFileSize(totalBytes)})";
+        }
+    }
 
     public MainWindowViewModel()
         : this(
@@ -139,8 +167,10 @@ public partial class MainWindowViewModel : ObservableObject
         SelectedFiles.CollectionChanged += (_, _) =>
         {
             OnPropertyChanged(nameof(HasSelectedFiles));
+            OnPropertyChanged(nameof(SelectedFilesSummary));
             SendFilesCommand.NotifyCanExecuteChanged();
         };
+
         DiscoveredDevices.CollectionChanged += (_, args) =>
         {
             OnPropertyChanged(nameof(HasDiscoveredDevices));
@@ -159,7 +189,8 @@ public partial class MainWindowViewModel : ObservableObject
                 if (!DiscoveredDevices.Any(d => d.IpAddress == device.IpAddress && d.Port == device.Port))
                 {
                     DiscoveredDevices.Add(device);
-                    Status = $"Found {DiscoveredDevices.Count} device(s)";
+                    Status = $"Discovered {DiscoveredDevices.Count} device(s)";
+                    ShowToast($"Discovered device: {device.DisplayName}");
                 }
             });
         };
@@ -171,7 +202,7 @@ public partial class MainWindowViewModel : ObservableObject
                 IsScanning = false;
                 if (DiscoveredDevices.Count == 0)
                 {
-                    Status = "No devices found. Make sure receiver is running on other device.";
+                    Status = "No devices found. Make sure receiver is running on target device.";
                     _ = CheckFirewallAsync();
                 }
                 else
@@ -198,6 +229,27 @@ public partial class MainWindowViewModel : ObservableObject
                 CurrentFileName = e.CurrentFileName ?? "";
                 CurrentFileProgress = $"{FormatFileSize(e.BytesTransferred)} / {FormatFileSize(e.TotalBytes)}";
                 Progress = e.Percentage;
+
+                if (e.SpeedBytesPerSecond > 0)
+                {
+                    TransferSpeedText = $"{FormatFileSize((long)e.SpeedBytesPerSecond)}/s";
+                    var remainingBytes = e.TotalBytes - e.BytesTransferred;
+                    if (remainingBytes > 0)
+                    {
+                        var seconds = remainingBytes / e.SpeedBytesPerSecond;
+                        EstimatedTimeRemainingText = $"~{Math.Max(1, (int)Math.Ceiling(seconds))}s remaining";
+                    }
+                    else
+                    {
+                        EstimatedTimeRemainingText = "Finishing...";
+                    }
+                }
+                else
+                {
+                    TransferSpeedText = "";
+                    EstimatedTimeRemainingText = "";
+                }
+
                 Status = e.IsReceiving
                     ? $"Receiving: {e.CurrentFileName} ({e.Percentage:F1}%)"
                     : $"Sending: {e.CurrentFileName} ({e.Percentage:F1}%)";
@@ -212,8 +264,15 @@ public partial class MainWindowViewModel : ObservableObject
                 Progress = 100;
                 CurrentFileName = "";
                 CurrentFileProgress = "";
+                TransferSpeedText = "";
+                EstimatedTimeRemainingText = "";
                 IsSending = false;
                 IsReceiving = false;
+
+                if (e.Success)
+                    ShowToast("✨ Transfer completed successfully!");
+                else if (!string.IsNullOrEmpty(e.ErrorMessage))
+                    ShowToast($"⚠️ {e.ErrorMessage}");
             });
         };
 
@@ -224,12 +283,19 @@ public partial class MainWindowViewModel : ObservableObject
                 Status = e.ErrorMessage;
                 IsSending = false;
                 IsReceiving = false;
+                TransferSpeedText = "";
+                EstimatedTimeRemainingText = "";
+                ShowToast($"❌ {e.ErrorMessage}");
             });
         };
 
         _fileTransferService.ConnectionStatusChanged += (_, e) =>
         {
-            Dispatcher.UIThread.Post(() => ConnectionTestResult = e);
+            Dispatcher.UIThread.Post(() =>
+            {
+                ConnectionTestResult = e;
+                ShowToast(e);
+            });
         };
 
         _themeService.ThemeChanged += (_, e) =>
@@ -242,6 +308,12 @@ public partial class MainWindowViewModel : ObservableObject
     {
         LocalIp = await _localIpService.GetLocalIpAddressAsync();
         IsDarkTheme = _themeService.IsSystemDarkTheme();
+
+        if (string.IsNullOrWhiteSpace(DownloadFolder))
+        {
+            DownloadFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+        }
+
         if (Application.Current is { } app)
         {
             app.ActualThemeVariantChanged += (_, _) =>
@@ -271,6 +343,7 @@ public partial class MainWindowViewModel : ObservableObject
         if (devices.Count == 0)
         {
             Status = "Select one or more receiver devices";
+            ShowToast("Select at least one receiver device");
             return;
         }
 
@@ -278,14 +351,23 @@ public partial class MainWindowViewModel : ObservableObject
         Progress = 0;
         CurrentFileName = "";
         CurrentFileProgress = "";
+        TransferSpeedText = "";
+        EstimatedTimeRemainingText = "";
 
         try
         {
-            await _fileTransferService.SendFilesAsync(SelectedFiles, devices);
+            var paths = SelectedFiles.Select(f => f.FilePath).ToList();
+            await _fileTransferService.SendFilesAsync(paths, devices);
         }
         catch (OperationCanceledException)
         {
             Status = "Sending cancelled";
+            ShowToast("Sending operation cancelled");
+        }
+        catch (Exception ex)
+        {
+            Status = $"Error: {ex.Message}";
+            ShowToast($"Send error: {ex.Message}");
         }
         finally
         {
@@ -297,26 +379,21 @@ public partial class MainWindowViewModel : ObservableObject
     private void StopSending()
     {
         Status = "Stopping send...";
+        ShowToast("Stopping file transmission...");
     }
 
     [RelayCommand]
     private async Task SelectFiles(Window? window)
     {
         var files = await _filePickerService.PickFilesAsync(window);
+        if (files.Count == 0) return;
+
         SelectedFiles.Clear();
         foreach (var f in files)
-            SelectedFiles.Add(f);
+            SelectedFiles.Add(new SelectedFileItem(f));
 
-        if (SelectedFiles.Count > 0)
-        {
-            long totalSize = 0;
-            foreach (var f in SelectedFiles)
-            {
-                if (File.Exists(f))
-                    totalSize += new FileInfo(f).Length;
-            }
-            Status = $"Selected {SelectedFiles.Count} file(s) ({FormatFileSize(totalSize)})";
-        }
+        Status = $"Selected {SelectedFiles.Count} file(s)";
+        ShowToast($"Added {SelectedFiles.Count} file(s)");
     }
 
     [RelayCommand]
@@ -337,18 +414,54 @@ public partial class MainWindowViewModel : ObservableObject
 
         SelectedFiles.Clear();
         foreach (var f in files)
-            SelectedFiles.Add(f);
+            SelectedFiles.Add(new SelectedFileItem(f));
 
         if (SelectedFiles.Count > 0)
         {
-            long totalSize = 0;
-            foreach (var f in SelectedFiles)
+            Status = $"Selected {SelectedFiles.Count} file(s) from folder '{Path.GetFileName(folderPath)}'";
+            ShowToast($"Loaded folder with {SelectedFiles.Count} files");
+        }
+    }
+
+    [RelayCommand]
+    private void RemoveSelectedFile(SelectedFileItem? fileItem)
+    {
+        if (fileItem != null && SelectedFiles.Contains(fileItem))
+        {
+            SelectedFiles.Remove(fileItem);
+            Status = $"Removed {fileItem.FileName}";
+            ShowToast($"Removed {fileItem.FileName}");
+        }
+    }
+
+    [RelayCommand]
+    private async Task CopyLocalIp(Window? window)
+    {
+        if (window != null && TopLevel.GetTopLevel(window) is { } topLevel && topLevel.Clipboard is { } clipboard)
+        {
+            await clipboard.SetTextAsync(LocalIp);
+            ShowToast($"📋 Copied IP to clipboard ({LocalIp})");
+        }
+    }
+
+    [RelayCommand]
+    private void OpenDownloadFolder()
+    {
+        try
+        {
+            if (!Directory.Exists(DownloadFolder))
+                Directory.CreateDirectory(DownloadFolder);
+
+            Process.Start(new ProcessStartInfo
             {
-                if (File.Exists(f))
-                    totalSize += new FileInfo(f).Length;
-            }
-            Status = $"Selected {SelectedFiles.Count} file(s) from folder '{Path.GetFileName(folderPath)}' ({FormatFileSize(totalSize)})";
-            SendFilesCommand.NotifyCanExecuteChanged();
+                FileName = DownloadFolder,
+                UseShellExecute = true
+            });
+            ShowToast($"Opened download folder");
+        }
+        catch (Exception ex)
+        {
+            ShowToast($"Could not open folder: {ex.Message}");
         }
     }
 
@@ -360,6 +473,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             DownloadFolder = folder;
             Status = $"Download folder: {DownloadFolder}";
+            ShowToast($"Download folder set to {DownloadFolder}");
         }
     }
 
@@ -371,6 +485,7 @@ public partial class MainWindowViewModel : ObservableObject
         IsScanning = true;
         DiscoveredDevices.Clear();
         Status = "Scanning for nearby devices...";
+        ShowToast("🔍 Scanning network for devices...");
 
         await _discoveryService.ScanAsync();
     }
@@ -380,6 +495,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         foreach (var d in DiscoveredDevices)
             d.IsSelected = true;
+        ShowToast("Selected all devices");
     }
 
     [RelayCommand]
@@ -387,6 +503,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         foreach (var d in DiscoveredDevices)
             d.IsSelected = false;
+        ShowToast("Cleared device selections");
     }
 
     [RelayCommand]
@@ -396,10 +513,12 @@ public partial class MainWindowViewModel : ObservableObject
         if (selectedDevices.Count == 0)
         {
             ConnectionTestResult = "Select one or more receiver devices";
+            ShowToast("Select at least one device to test");
             return;
         }
 
-        ConnectionTestResult = "Testing receivers...";
+        ConnectionTestResult = "Testing connection to selected receivers...";
+        ShowToast("Testing receiver connections...");
 
         foreach (var device in selectedDevices)
         {
@@ -415,6 +534,7 @@ public partial class MainWindowViewModel : ObservableObject
             await _fileTransferService.StopReceivingAsync();
             IsReceiving = false;
             Status = "Stopped listening";
+            ShowToast("Stopped receiver service");
         }
         else
         {
@@ -423,19 +543,20 @@ public partial class MainWindowViewModel : ObservableObject
                 DownloadFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
                 if (!Directory.Exists(DownloadFolder))
                     Directory.CreateDirectory(DownloadFolder);
-                Status = $"Using default folder: {DownloadFolder}";
             }
 
             if (!int.TryParse(Port, out int port) || port <= 0 || port > 65535)
             {
                 Status = "Invalid port number!";
+                ShowToast("Please enter a valid port (1-65535)");
                 return;
             }
 
             LocalIp = await _localIpService.GetLocalIpAddressAsync();
             IsReceiving = true;
-            Status = $"Listening on {LocalIp}:{port} (broadcasting to network)...";
+            Status = $"Listening on {LocalIp}:{port}...";
             Progress = 0;
+            ShowToast($"🚀 Listening for incoming transfers on port {port}");
 
             _ = _discoveryService.StartRespondingAsync(port);
             await _fileTransferService.StartReceivingAsync(DownloadFolder, port);
@@ -447,15 +568,17 @@ public partial class MainWindowViewModel : ObservableObject
     {
         SelectedFiles.Clear();
         Status = "Files cleared";
+        ShowToast("Cleared selected files");
     }
 
     [RelayCommand]
     private async Task ToggleTheme()
     {
         ContentOpacity = 0;
-        await Task.Delay(200);
+        await Task.Delay(180);
         await _themeService.ToggleThemeAsync();
         ContentOpacity = 1;
+        ShowToast(IsDarkTheme ? "🌙 Switched to Dark Mode" : "☀️ Switched to Light Mode");
     }
 
     [RelayCommand]
@@ -468,16 +591,19 @@ public partial class MainWindowViewModel : ObservableObject
             if (!IsFirewallWarningVisible)
             {
                 Status = "Firewall is already configured correctly";
+                ShowToast("Firewall is configured correctly");
                 return;
             }
 
             await _firewallService.FixFirewallAsync();
             Status = "Firewall configured successfully";
+            ShowToast("🛡️ Firewall rule updated!");
             await CheckFirewallAsync();
         }
         catch (Exception ex)
         {
             Status = $"Firewall fix failed: {ex.Message}";
+            ShowToast($"Firewall fix error: {ex.Message}");
         }
     }
 
@@ -493,6 +619,24 @@ public partial class MainWindowViewModel : ObservableObject
         {
             IsFirewallWarningVisible = false;
         }
+    }
+
+    public void ShowToast(string message, int durationMs = 3000)
+    {
+        _toastCts?.Cancel();
+        _toastCts = new CancellationTokenSource();
+        var token = _toastCts.Token;
+
+        ToastMessage = message;
+        IsToastVisible = true;
+
+        Task.Delay(durationMs, token).ContinueWith(t =>
+        {
+            if (!t.IsCanceled)
+            {
+                Dispatcher.UIThread.Post(() => IsToastVisible = false);
+            }
+        }, TaskScheduler.Default);
     }
 
     public static string FormatFileSize(long bytes)

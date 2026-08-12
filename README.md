@@ -2,102 +2,229 @@
 
 A cross-platform desktop application to send and receive files over WiFi or LAN.
 
+[![CI](https://github.com/mrunal77/WifiSender/actions/workflows/ci.yml/badge.svg)](https://github.com/mrunal77/WifiSender/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/mrunal77/WifiSender)](https://github.com/mrunal77/WifiSender/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Built with AI](https://img.shields.io/badge/Built%20with-AI%20on%20Opencode-blueviolet)](https://opencode.ai)
+
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Building from Source](#building-from-source)
+- [Usage](#usage)
+- [Firewall Configuration](#firewall-configuration)
+- [Architecture](#architecture)
+- [Releases](#releases)
+- [Contributing](#contributing)
+- [Security](#security)
+- [License](#license)
+
 ## Features
 
-- **Cross-platform**: Works on Windows, Linux, and macOS
-- **Auto-detect local IP**: Automatically detects your local network IP
-- **Send files**: Select files and send to any device on your network
-- **Receive files**: Start receiving and save files to a selected folder
-- **Progress tracking**: Visual progress bar for file transfers
-- **Test connection**: Verify connectivity before sending
+- **Cross-platform** — Windows, Linux, and macOS (Apple Silicon + Intel)
+- **Auto-detect local IP** — automatically finds your network interface
+- **Send files** — select files and send to any device on your network
+- **Receive files** — start receiving and save to a selected folder
+- **Progress tracking** — real-time transfer speed (MB/s) and ETA
+- **Device discovery** — UDP-based automatic peer discovery
+- **Dark / light themes** — adaptive theme that follows system preference
+- **Drag and drop** — drop files directly onto the app
+- **Firewall helper** — auto-configures ufw / firewalld / iptables
 
-## Requirements
+## Installation
 
-- .NET 10.0 or higher
+Download the latest release for your platform from the
+[**Releases page**](https://github.com/mrunal77/WifiSender/releases/latest):
 
-## Running the Application
+| Platform | Package | Notes |
+|----------|---------|-------|
+| Windows (x64) | [`WifiSender-<ver>-win-x64.exe`](https://github.com/mrunal77/WifiSender/releases/latest) (+ `.zip`) | Run directly |
+| Linux (x64) | [`WifiSender-<ver>-linux-x64.AppImage`](https://github.com/mrunal77/WifiSender/releases/latest) | `chmod +x` then run |
+| macOS (Apple Silicon) | [`WifiSender-<ver>-osx-arm64.dmg`](https://github.com/mrunal77/WifiSender/releases/latest) | Open `.dmg`, drag to Applications |
+| macOS (Intel) | [`WifiSender-<ver>-osx-x64.dmg`](https://github.com/mrunal77/WifiSender/releases/latest) | Open `.dmg`, drag to Applications |
 
-### From published files:
+### Linux prerequisites
+
+The AppImage requires FUSE:
+
 ```bash
-./publish/WifiSender
+# Ubuntu / Debian
+sudo apt install libfuse2
+
+# Fedora
+sudo dnf install fuse-libs
 ```
 
-### From source:
+### Verifying downloads
+
+Each release ships `SHA256SUMS.txt`. Verify a downloaded asset:
+
 ```bash
-dotnet run
+sha256sum -c SHA256SUMS.txt --ignore-missing
 ```
 
-### Building:
+All artifacts carry **build provenance attestations** (SLSA). Verify with:
+
 ```bash
+gh attestation verify <asset> --repo mrunal77/WifiSender
+```
+
+## Building from Source
+
+Requires **.NET 10.0 SDK** or later.
+
+```bash
+# Clone
+git clone https://github.com/mrunal77/WifiSender.git
+cd WifiSender
+
 # Debug build
 dotnet build
 
-# Release build
+# Release build (self-contained, single-file)
 dotnet publish -c Release -o ./publish
+
+# Run
+./publish/WifiSender
 ```
 
-## How to Use
+See [`docs/release-process.md`](docs/release-process.md) for packaging scripts
+and the full release workflow.
 
-### Sending Files
-1. Open the app on both computers connected to the same network
-2. On the receiving computer: Click "START RECEIVING"
-3. On the sending computer: 
-   - Enter the receiver's IP address
-   - Click "Select Files" to choose files
-   - Click "SEND"
+## Usage
 
-### Notes
-- Both computers must be on the same network (WiFi or LAN)
-- The default port is 5555, but you can change it if needed
-- Files are saved to the selected download folder (defaults to ~/Downloads)
-- Use "Test" button to verify connectivity before sending
+### Sending files
+
+1. Open the app on both devices connected to the same network.
+2. On the **receiving** device: click **START RECEIVING**.
+3. On the **sending** device:
+   - Enter the receiver's IP address (or use **Scan** to discover peers).
+   - Click **Select Files** to choose files (or drag and drop).
+   - Click **SEND**.
+
+### Receiving files
+
+1. Click **START RECEIVING** — the app listens on port **5555** (TCP).
+2. Incoming transfers appear with progress, speed, and ETA.
+3. Received files are saved to the selected download folder (`~/Downloads` by default).
+
+### Keyboard shortcuts
+
+| Action | Shortcut |
+|--------|----------|
+| Send files | `Enter` |
+
+### Tips
+
+- Use the **Test** button to verify connectivity before sending.
+- Click the **Local IP** label to copy your IP to the clipboard.
+- Open the download folder directly with the **Open Download Folder** button.
 
 ## Firewall Configuration
 
-Device discovery uses **UDP port 5556**, and file transfers use **TCP port 5555** (configurable).
-Your firewall must allow these ports for the app to work properly.
+Device discovery uses **UDP port 5556** and file transfers use **TCP port 5555**
+(configurable). Your firewall must allow these ports.
 
-### Automatic Setup (Linux)
-
-Run the included script with admin privileges:
+### Automatic setup (Linux)
 
 ```bash
 sudo scripts/setup-firewall.sh
 ```
 
-The script auto-detects your firewall (ufw, firewalld, iptables, or nftables) and adds the
-required rules. You can also click "Fix Firewall" in the app's Send tab, which launches the
-script via Polkit (pkexec).
+The script auto-detects your firewall (ufw, firewalld, iptables, or nftables)
+and adds the required rules. You can also click **Fix Firewall** in the app,
+which launches the script via Polkit.
 
-### Manual Setup
+### Manual setup
 
-- **ufw**: `sudo ufw allow 5556/udp && sudo ufw allow 5555/tcp`
-- **firewalld**: `sudo firewall-cmd --add-port=5556/udp --add-port=5555/tcp && sudo firewall-cmd --runtime-to-permanent`
-- **iptables**: `sudo iptables -A INPUT -p udp --dport 5556 -j ACCEPT && sudo iptables -A INPUT -p tcp --dport 5555 -j ACCEPT`
+| Firewall | Command |
+|----------|---------|
+| ufw | `sudo ufw allow 5556/udp && sudo ufw allow 5555/tcp` |
+| firewalld | `sudo firewall-cmd --add-port=5556/udp --add-port=5555/tcp && sudo firewall-cmd --runtime-to-permanent` |
+| iptables | `sudo iptables -A INPUT -p udp --dport 5556 -j ACCEPT && sudo iptables -A INPUT -p tcp --dport 5555 -j ACCEPT` |
 
-## License
+## Architecture
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+```
+WifiSender/
+├── Engine/                  # Transfer engine
+│   ├── Discovery/           # UDP peer discovery
+│   ├── FileTransfer/        # TCP file transfer with chunking
+│   └── Transport/           # QUIC + TCP transport abstractions
+├── ViewModels/              # MVVM view models (CommunityToolkit.Mvvm)
+├── Views/                   # Avalonia UI views
+├── Services/                # Platform services (firewall, file picker, theme)
+├── Assets/                  # Icons, design tokens, styles
+├── packaging/               # Platform packaging scripts
+├── scripts/                 # Release + firewall helper scripts
+├── docs/                    # Documentation
+└── .github/workflows/       # CI / Release / Security pipelines
+```
+
+Key technologies:
+- [Avalonia UI](https://avaloniaui.net/) — cross-platform XAML framework
+- [.NET 10.0](https://dotnet.microsoft.com/) — runtime and SDK
+- [CommunityToolkit.Mvvm](https://learn.microsoft.com/dotnet/communitytoolkit/mvvm/) — MVVM source generators
+- [MinVer](https://github.com/dotnet/MinVer) — semantic versioning from git tags
+
+See [`SPEC.md`](SPEC.md) for the full application specification.
 
 ## Releases
 
-Prebuilt installers are published as **GitHub Releases**:
+Releases are automated via GitHub Actions. See
+[`docs/release-process.md`](docs/release-process.md) for the full process.
 
-| Platform | Package |
-|----------|---------|
-| Windows (x64) | `WifiSender-<version>-win-x64.exe` (+ `.zip`) |
-| Linux (x64) | `WifiSender-<version>-linux-x64.AppImage` |
-| macOS (Apple Silicon) | `WifiSender-<version>-osx-arm64.dmg` |
-| macOS (Intel) | `WifiSender-<version>-osx-x64.dmg` |
+Each release includes:
 
-Each release also ships `SHA256SUMS.txt`, a `release-manifest.json`, and an SPDX
-`sbom.spdx.json`. All artifacts carry **build provenance attestations** (GitHub
-Artifact Attestations) — verify them with:
+| Asset | Description |
+|-------|-------------|
+| `WifiSender-<ver>-win-x64.exe` | Windows installer (self-contained) |
+| `WifiSender-<ver>-win-x64.zip` | Windows portable archive |
+| `WifiSender-<ver>-linux-x64.AppImage` | Linux AppImage (FUSE required) |
+| `WifiSender-<ver>-osx-arm64.dmg` | macOS disk image (Apple Silicon) |
+| `WifiSender-<ver>-osx-x64.dmg` | macOS disk image (Intel) |
+| `SHA256SUMS.txt` | SHA-256 checksums for all assets |
+| `release-manifest.json` | Version + per-asset hashes |
+| `sbom.spdx.json` | SPDX 2.2 software bill of materials |
 
-```bash
-gh attestation verify <asset> --repo <owner>/WifiSender
-```
+Versions are derived from git tags via [MinVer](https://github.com/dotnet/MinVer)
+and are **never** edited by hand.
 
-Versions are derived from git tags via MinVer — never edited by hand. To cut a
-release, use the **Release** workflow (Actions → Release → Run workflow). See
-[docs/release-process.md](docs/release-process.md) for details.
+### Cutting a release
+
+1. Go to **Actions → Release → Run workflow**.
+2. Set `version_type` (`patch` / `minor` / `major` / `prerelease`) or provide
+   an explicit `version`.
+3. Optionally enable `dry_run` to verify the pipeline first.
+
+## Contributing
+
+1. Fork the repository.
+2. Create a feature branch (`git checkout -b feat/my-feature`).
+3. Commit with [conventional commits](https://www.conventionalcommits.org/)
+   (`feat:`, `fix:`, `refactor:`, etc.).
+4. Push and open a Pull Request.
+
+CI runs automatically on PRs (build, format, test on Linux + Windows).
+
+Dependabot keeps NuGet and GitHub Actions dependencies up to date.
+
+## Security
+
+If you discover a security vulnerability, please report it responsibly. Do **not**
+open a public issue. Instead, contact the maintainer directly.
+
+CodeQL analysis runs weekly via
+[`.github/workflows/security.yml`](.github/workflows/security.yml).
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file
+for details.
+
+---
+
+<p align="center">
+  Built with AI on <a href="https://opencode.ai">Opencode</a>
+</p>

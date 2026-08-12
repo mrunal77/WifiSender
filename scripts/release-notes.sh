@@ -10,9 +10,11 @@ set -euo pipefail
 CURRENT="${1:?usage: release-notes.sh <current-tag> [previous-tag]}"
 PREV="${2:-}"
 
-RANGE="$CURRENT"
-if [ -n "$PREV" ] && git rev-parse -q --verify "refs/tags/$PREV" >/dev/null; then
+RANGE="HEAD"
+if [ -n "$PREV" ] && git rev-parse -q --verify "refs/tags/$PREV" >/dev/null 2>&1; then
     RANGE="$PREV..$CURRENT"
+elif git rev-parse -q --verify "refs/tags/$CURRENT" >/dev/null 2>&1; then
+    RANGE="$CURRENT"
 fi
 
 # shellcheck disable=SC2016

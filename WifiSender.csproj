@@ -16,6 +16,9 @@
 
   <ItemGroup>
     <Folder Include="Models/" />
+    <Compile Remove="Engine\**" />
+    <EmbeddedResource Remove="Engine\**" />
+    <None Remove="Engine\**" />
     <AvaloniaResource Include="Assets/**" />
     <AvaloniaResource Include="DesignSystem/**" />
     <EmbeddedResource Include="Assets/appicon.ico" />
@@ -32,5 +35,9 @@
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="Engine\WifiSender.Transfer.csproj" />
   </ItemGroup>
 </Project>

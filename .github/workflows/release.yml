@@ -180,12 +180,20 @@ jobs:
           bash packaging/package-linux-appimage.sh
           test -s "dist/WifiSender-$VERSION-linux-x64.AppImage"
 
+      - name: Install FUSE for AppImage validation
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y libfuse2
+
       - name: Package macOS DMG
         if: runner.os == 'macOS'
         env:
           VERSION: ${{ needs.prepare.outputs.version }}
           RUNTIME: ${{ matrix.rid }}
         run: |
+          # Free up space before DMG creation
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /opt/hostedtoolcache/CodeQL 2>/dev/null || true
+          df -h /
           bash packaging/package-macos-dmg.sh
           test -s "dist/WifiSender-$VERSION-$RUNTIME.dmg"
           hdiutil verify "dist/WifiSender-$VERSION-$RUNTIME.dmg"
@@ -213,7 +221,7 @@ jobs:
           appimage="dist/WifiSender-$VERSION-linux-x64.AppImage"
           test -x "$appimage"
           file "$appimage"
-          unzip -l "$appimage" | grep -q "AppRun"
+          "$appimage" --appimage-extract AppRun >/dev/null 2>&1
           echo "OK: AppImage contains AppRun and is executable"
 
       - name: Validate macOS package

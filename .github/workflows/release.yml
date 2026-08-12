@@ -172,6 +172,11 @@ jobs:
           if (-not (Test-Path $exe)) { throw "Expected $exe" }
           Compress-Archive -Path $exe -DestinationPath "dist/WifiSender-$env:VERSION-win-x64.zip" -Force
 
+      - name: Install FUSE for AppImage
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y libfuse2
+
       - name: Package Linux AppImage
         if: runner.os == 'Linux'
         env:
@@ -179,11 +184,6 @@ jobs:
         run: |
           bash packaging/package-linux-appimage.sh
           test -s "dist/WifiSender-$VERSION-linux-x64.AppImage"
-
-      - name: Install FUSE for AppImage validation
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update && sudo apt-get install -y libfuse2
 
       - name: Package macOS DMG
         if: runner.os == 'macOS'

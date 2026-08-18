@@ -46,6 +46,7 @@ jobs:
         run: dotnet format WifiSender.sln --verify-no-changes --no-restore
 
       - name: Test with coverage
+        shell: bash
         run: |
           dotnet test WifiSender.sln -c Release --no-build --no-restore \
             --collect:"XPlat Code Coverage" \

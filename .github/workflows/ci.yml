@@ -45,17 +45,26 @@ jobs:
         if: runner.os == 'Linux'
         run: dotnet format WifiSender.sln --verify-no-changes --no-restore
 
-      - name: Test
-        run: dotnet test WifiSender.sln -c Release --no-build --no-restore
+      - name: Test with coverage
+        run: |
+          dotnet test WifiSender.sln -c Release --no-build --no-restore \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./TestResults
+
+      - name: Upload coverage results
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-results
+          path: ./TestResults/**/coverage.cobertura.xml
 
       - name: Transfer engine loopback check (Linux)
         if: runner.os == 'Linux'
-        run: dotnet run --project Engine/Bench -c Release -- 16 1024
+        run: dotnet run --project src/WifiSender.Transfer/Bench -c Release -- 16 1024
 
       - name: Validate single-file publish (Linux)
         if: runner.os == 'Linux'
         run: |
-          dotnet publish WifiSender.csproj -c Release -r linux-x64 --self-contained true \
+          dotnet publish src/WifiSender/WifiSender.csproj -c Release -r linux-x64 --self-contained true \
             -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
             -p:PublishTrimmed=false -o dist/ci-publish
           test -x dist/ci-publish/WifiSender
@@ -63,7 +72,7 @@ jobs:
       - name: Validate single-file publish (Windows)
         if: runner.os == 'Windows'
         run: |
-          dotnet publish WifiSender.csproj -c Release -r win-x64 --self-contained true `
+          dotnet publish src/WifiSender/WifiSender.csproj -c Release -r win-x64 --self-contained true `
             -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:PublishTrimmed=false -o dist/ci-publish
           if (-not (Test-Path "dist/ci-publish/WifiSender.exe")) { throw "published binary missing" }

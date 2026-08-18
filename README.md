@@ -2,7 +2,8 @@
 
 A cross-platform desktop application to send and receive files over WiFi or LAN.
 
-[![CI](https://github.com/mrunal77/WifiSender/actions/workflows/ci.yml/badge.svg)](https://github.com/mrunal77/WifiSender/actions/workflows/ci.yml)
+ [![CI](https://github.com/mrunal77/WifiSender/actions/workflows/ci.yml/badge.svg)](https://github.com/mrunal77/WifiSender/actions/workflows/ci.yml)
+ [![Coverage](https://codecov.io/gh/mrunal77/WifiSender/branch/main/graph/badge.svg)](https://codecov.io/gh/mrunal77/WifiSender)
 [![Release](https://img.shields.io/github/v/release/mrunal77/WifiSender)](https://github.com/mrunal77/WifiSender/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Built with AI](https://img.shields.io/badge/Built%20with-AI%20on%20Opencode-blueviolet)](https://opencode.ai)
@@ -16,7 +17,8 @@ A cross-platform desktop application to send and receive files over WiFi or LAN.
 - [Firewall Configuration](#firewall-configuration)
 - [Architecture](#architecture)
 - [Releases](#releases)
-- [Contributing](#contributing)
+ - [Contributing](#contributing)
+ - [Testing](#testing)
 - [Security](#security)
 - [License](#license)
 
@@ -148,18 +150,17 @@ which launches the script via Polkit.
 
 ```
 WifiSender/
-├── Engine/                  # Transfer engine
-│   ├── Discovery/           # UDP peer discovery
-│   ├── FileTransfer/        # TCP file transfer with chunking
-│   └── Transport/           # QUIC + TCP transport abstractions
-├── ViewModels/              # MVVM view models (CommunityToolkit.Mvvm)
-├── Views/                   # Avalonia UI views
-├── Services/                # Platform services (firewall, file picker, theme)
-├── Assets/                  # Icons, design tokens, styles
-├── packaging/               # Platform packaging scripts
-├── scripts/                 # Release + firewall helper scripts
-├── docs/                    # Documentation
-└── .github/workflows/       # CI / Release / Security pipelines
+├── src/                        # Source code
+│   ├── WifiSender/             # Desktop GUI app (Avalonia UI)
+│   └── WifiSender.Transfer/    # Transfer engine (TCP, session codecs, protocols)
+├── test/                       # Unit & integration tests
+│   └── WifiSender.Tests/
+├── docs/                       # Documentation
+├── scripts/                    # Release & firewall helper scripts
+├── packaging/                  # Platform packaging scripts
+├── installer/                  # Platform installer assets
+├── .github/workflows/          # CI / Release / Security pipelines
+└── ...
 ```
 
 Key technologies:
@@ -197,6 +198,18 @@ and are **never** edited by hand.
 2. Set `version_type` (`patch` / `minor` / `major` / `prerelease`) or provide
    an explicit `version`.
 3. Optionally enable `dry_run` to verify the pipeline first.
+
+## Testing
+
+Run the unit‑test suite and collect coverage:
+
+```bash
+dotnet test WifiSender.sln -c Release --no-build --no-restore \
+  --collect:"XPlat Code Coverage" \
+  --results-directory ./TestResults
+```
+
+The coverage report (Cobertura format) is emitted under `TestResults/**/coverage.cobertura.xml`. You can view it locally with a tool such as `reportgenerator` or upload it to a service like Codecov (the CI workflow already does this).
 
 ## Contributing
 

@@ -25,7 +25,7 @@ mkdir -p "$APP_BUNDLE/Contents/MacOS" "$APP_BUNDLE/Contents/Resources" "$DMG_ROO
 
 cp "$PUBLISH_DIR/$APP_NAME" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
-cp "$ROOT_DIR/Assets/appicon.png" "$APP_BUNDLE/Contents/Resources/appicon.png"
+cp "$ROOT_DIR/src/WifiSender/Assets/appicon.png" "$APP_BUNDLE/Contents/Resources/appicon.png"
 
 cat > "$APP_BUNDLE/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>

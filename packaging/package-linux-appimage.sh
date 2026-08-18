@@ -22,8 +22,8 @@ mkdir -p \
 cp "$PUBLISH_DIR/$APP_NAME" "$APPIMAGE_DIR/usr/bin/$APP_NAME"
 chmod +x "$APPIMAGE_DIR/usr/bin/$APP_NAME"
 
-cp "$ROOT_DIR/Assets/appicon.png" "$APPIMAGE_DIR/wifisender.png"
-cp "$ROOT_DIR/Assets/appicon.png" "$APPIMAGE_DIR/usr/share/icons/hicolor/256x256/apps/wifisender.png"
+cp "$ROOT_DIR/src/WifiSender/Assets/appicon.png" "$APPIMAGE_DIR/wifisender.png"
+cp "$ROOT_DIR/src/WifiSender/Assets/appicon.png" "$APPIMAGE_DIR/usr/share/icons/hicolor/256x256/apps/wifisender.png"
 
 cat > "$APPIMAGE_DIR/$APP_NAME.desktop" <<EOF
 [Desktop Entry]

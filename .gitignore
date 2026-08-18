@@ -44,6 +44,7 @@ publish/
 dist/
 *.app
 *.appbundle
+*.binlog
 
 # OS
 .DS_Store

@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <NoWarn>NU1903</NoWarn>
+    <ApplicationManifest>../../app.manifest</ApplicationManifest>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <ApplicationIcon>Assets/appicon.ico</ApplicationIcon>
+    <AssemblyName>WifiSender</AssemblyName>
+    <Authors>WifiSender</Authors>
+    <Product>WifiSender</Product>
+    <Description>Cross-platform file transfer over WiFi or LAN</Description>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Folder Include="Models/" />
+    <AvaloniaResource Include="Assets/**" />
+    <AvaloniaResource Include="DesignSystem/**" />
+    <EmbeddedResource Include="Assets/appicon.ico" />
+  </ItemGroup>
+  <!-- Exclude test source files from the main project -->
+  <ItemGroup>
+    <Compile Remove="..\test\WifiSender.Tests\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WifiSender.Transfer\WifiSender.Transfer.csproj" />
+  </ItemGroup>
+
+  <Target Name="WriteVersionInfo" AfterTargets="Build">
+    <MakeDir Directories="$(MSBuildProjectDirectory)/../../dist" />
+    <WriteLinesToFile
+      File="$(MSBuildProjectDirectory)/../../dist/version.txt"
+      Lines="$(Version)"
+      Overwrite="true" />
+  </Target>
+</Project>

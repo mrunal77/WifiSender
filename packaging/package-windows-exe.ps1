@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$Project = Join-Path $Root "WifiSender.csproj"
+$Project = Join-Path $Root "src\WifiSender\WifiSender.csproj"
 $AppName = "WifiSender"
 $Configuration = if ($env:CONFIGURATION) { $env:CONFIGURATION } else { "Release" }
 $Runtime = if ($env:RUNTIME) { $env:RUNTIME } else { "win-x64" }

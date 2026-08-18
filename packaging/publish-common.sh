@@ -18,7 +18,7 @@ publish_runtime() {
     rm -rf "$output_dir"
     mkdir -p "$output_dir"
 
-    dotnet publish "$ROOT_DIR/WifiSender.csproj" \
+    dotnet publish "$ROOT_DIR/src/WifiSender/WifiSender.csproj" \
         -c "$CONFIGURATION" \
         -r "$runtime" \
         --self-contained true \

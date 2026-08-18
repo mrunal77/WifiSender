@@ -47,7 +47,7 @@ GitHub Release. This file tracks the notable changes.
 - Avalonia-based cross-platform desktop UI (dark/light themes, file picker,
   toasts, progress/speed indicators).
 - UDP discovery + TCP file transfer engine with chunking, resume, and
-  whole-file hash verification (`Engine/`).
+  whole-file hash verification (`src/WifiSender.Transfer/`).
 - Device pairing via shared secret.
 - Firewall auto-configuration helper (`scripts/setup-firewall.sh`).
-- Loopback integration smoke test / benchmark (`Engine/Bench`).
+- Loopback integration smoke test / benchmark (`src/WifiSender.Transfer/Bench`).

@@ -331,7 +331,7 @@ jobs:
       - name: Generate SBOM
         run: |
           dotnet tool install Microsoft.Sbom.DotNetTool --tool-path /tmp/sbom-tool
-          dotnet build WifiSender.csproj -c Release -o /tmp/sbom-build
+          dotnet build src/WifiSender/WifiSender.csproj -c Release -o /tmp/sbom-build
           mkdir -p /tmp/sbom-manifest
           /tmp/sbom-tool/sbom-tool generate \
             -b /tmp/sbom-build \

@@ -9,29 +9,18 @@ namespace WifiSender.Services;
 
 public sealed class LocalIpService : ILocalIpService
 {
-    public Task<string> GetLocalIpAddressAsync(CancellationToken cancellationToken = default)
+    public async Task<string> GetLocalIpAddressAsync(CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(GetLocalIpAddress());
+        return await Task.Run(() => GetLocalIpAddress(), cancellationToken).ConfigureAwait(false);
     }
 
-    public Task<IReadOnlyList<string>> GetBroadcastAddressesAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<string>> GetBroadcastAddressesAsync(CancellationToken cancellationToken = default)
     {
-        return Task.FromResult<IReadOnlyList<string>>(GetBroadcastAddresses());
+        return await Task.Run(() => GetBroadcastAddresses(), cancellationToken).ConfigureAwait(false);
     }
 
     private static string GetLocalIpAddress()
     {
-        try
-        {
-            using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, 0);
-            socket.Connect("8.8.8.8", 65530);
-            var endPoint = socket.LocalEndPoint as IPEndPoint;
-            var ip = endPoint?.Address.ToString();
-            if (!string.IsNullOrEmpty(ip) && !ip.StartsWith("127."))
-                return ip;
-        }
-        catch { }
-
         foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces())
         {
             if (networkInterface.OperationalStatus != OperationalStatus.Up)

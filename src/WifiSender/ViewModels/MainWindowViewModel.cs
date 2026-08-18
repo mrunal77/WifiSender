@@ -340,7 +340,8 @@ public partial class MainWindowViewModel : ObservableObject
                     IsDarkTheme = _themeService.IsSystemDarkTheme();
             };
         }
-        await CheckFirewallAsync();
+
+        _ = CheckFirewallAsync();
     }
 
     private void OnDevicePropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)

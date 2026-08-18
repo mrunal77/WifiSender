@@ -25,6 +25,7 @@ publish_runtime() {
         -p:PublishSingleFile=true \
         -p:IncludeNativeLibrariesForSelfExtract=true \
         -p:PublishTrimmed=false \
+        -p:PublishReadyToRun=true \
         -p:DebugType=None \
         -p:DebugSymbols=false \
         -o "$output_dir"
